@@ -7,6 +7,7 @@ export const productsRouter = Router()
 // GET /api/products - List all products with filters
 productsRouter.get('/', async (req: Request, res: Response) => {
     try {
+        // Standard filters
         const filters: ProductFilters = {
             search: req.query.search as string,
             category: req.query.category as string,
@@ -19,6 +20,14 @@ productsRouter.get('/', async (req: Request, res: Response) => {
             page: req.query.page ? Number(req.query.page) : 1,
             limit: Math.min(Number(req.query.limit) || 20, 100),
         }
+
+        // Add dynamic attribute filters (any query param not in standard list)
+        const standardKeys = ['search', 'category', 'brand', 'minPrice', 'maxPrice', 'inStock', 'supplier', 'sortBy', 'page', 'limit']
+        Object.entries(req.query).forEach(([key, value]) => {
+            if (!standardKeys.includes(key) && typeof value === 'string' && value.trim()) {
+                filters[key] = value
+            }
+        })
 
         const result = await productService.getAllProducts(filters)
 

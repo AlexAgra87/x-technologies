@@ -4,6 +4,7 @@ import cors from 'cors'
 import helmet from 'helmet'
 import { productsRouter } from './handlers/products.handler'
 import { healthRouter } from './handlers/health.handler'
+import { startScheduler } from './services/scheduler.service'
 
 const app = express()
 const PORT = process.env.PORT || 4000
@@ -58,6 +59,9 @@ app.listen(PORT, () => {
     console.log(`🚀 X-Tech API server running on port ${PORT}`)
     console.log(`📍 Health check: http://localhost:${PORT}/api/health`)
     console.log(`📦 Products API: http://localhost:${PORT}/api/products`)
+
+    // Start the background stock refresh scheduler
+    startScheduler()
 })
 
 export default app

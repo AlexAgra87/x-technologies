@@ -1,5 +1,7 @@
 import axios from 'axios'
 import NodeCache from 'node-cache'
+import * as fs from 'fs'
+import * as path from 'path'
 import { Product } from '../types/product'
 import {
     FrontosaStockResponse,
@@ -22,8 +24,12 @@ const STOCK_CACHE_KEY = 'frontosa_stock'
 const INFO_CACHE_KEY = 'frontosa_info'
 const LINKS_CACHE_KEY = 'frontosa_links'
 
-// VAT rate for South Africa
-const VAT_RATE = 1.15
+// Pricing: X-Tech markup and VAT
+const MARKUP_RATE = 1.10  // 10% markup
+const VAT_RATE = 1.15     // 15% VAT (South Africa)
+
+// Image map: SKU -> array of image paths
+type ImageMap = Record<string, string[]>
 
 export class FrontosaService {
     private apiUrl: string
@@ -31,10 +37,38 @@ export class FrontosaService {
     private brands: Map<number, string> = new Map()
     private categories: Map<number, string> = new Map()
     private productLinks: Map<string, string> = new Map()
+    private imageMap: ImageMap = {}
 
     constructor() {
         this.apiUrl = FRONTOSA_API_URL
         this.token = FRONTOSA_TOKEN
+        this.loadImageMap()
+    }
+
+    /**
+     * Load the local image map (SKU -> image paths)
+     */
+    private loadImageMap(): void {
+        try {
+            // Try multiple possible paths for the image map
+            const possiblePaths = [
+                path.join(__dirname, '../../public/images/frontosa/image-map.json'),
+                path.join(process.cwd(), '../frontend/public/images/frontosa/image-map.json'),
+                '/root/x-technologies/frontend/public/images/frontosa/image-map.json'
+            ]
+
+            for (const mapPath of possiblePaths) {
+                if (fs.existsSync(mapPath)) {
+                    const data = fs.readFileSync(mapPath, 'utf-8')
+                    this.imageMap = JSON.parse(data)
+                    console.log(`Loaded Frontosa image map with ${Object.keys(this.imageMap).length} SKUs from ${mapPath}`)
+                    return
+                }
+            }
+            console.warn('Frontosa image map not found')
+        } catch (error) {
+            console.error('Error loading Frontosa image map:', error)
+        }
     }
 
     /**
@@ -170,9 +204,10 @@ export class FrontosaService {
      * Transform Frontosa stock item to unified Product format
      */
     private transformProduct(item: FrontosaStockItem): Product {
-        // Calculate price including VAT (Frontosa prices are ex VAT)
-        const priceExVat = Number(item.price) || 0
-        const priceIncVat = Math.round(priceExVat * VAT_RATE)
+        // Frontosa prices are ex-VAT dealer cost
+        const costExVat = Number(item.price) || 0
+        // Apply 10% markup then add 15% VAT
+        const price = Math.round(costExVat * MARKUP_RATE * VAT_RATE)
 
         // Extract stock levels from dynamic branch fields
         const jhbStock = this.extractBranchStock(item, 'jhb')
@@ -198,8 +233,8 @@ export class FrontosaService {
         }
         const statusText = statusMap[item.status] || 'Available'
 
-        // Calculate RRP with typical markup (use same price if no markup data)
-        const rrp = priceIncVat
+        // No RRP from Frontosa, use selling price
+        const rrp = price
         const discount = 0 // Frontosa doesn't provide RRP so no discount calculation
 
         return {
@@ -208,7 +243,7 @@ export class FrontosaService {
             name: item.desc,
             description: `${item.desc}${statusText !== 'Available' ? ` (${statusText})` : ''}`,
             shortDescription: item.desc,
-            price: priceIncVat,
+            price,
             rrp,
             supplier: 'frontosa' as any, // Will need to update Product type
             stock: {
@@ -220,8 +255,8 @@ export class FrontosaService {
                 },
                 // Additional locations for Frontosa
             },
-            featuredImage: '', // Frontosa doesn't provide images via API
-            images: [],
+            featuredImage: this.imageMap[item.code]?.[0] || '',
+            images: this.imageMap[item.code] || [],
             categories: [categoryName],
             categoryTree: categoryName,
             brand: brandName,

@@ -25,7 +25,6 @@ import { useProduct, useProducts } from '@/lib/api'
 import { formatPrice, getStockStatus, cn } from '@/lib/utils'
 import { useCart } from '@/lib/cart-context'
 import { ProductImage } from '@/components/ui/ProductImage'
-import { ProductReviews } from '@/components/products/ProductReviews'
 import { Product } from '@/lib/types'
 
 const WISHLIST_KEY = 'xtech-wishlist'
@@ -144,7 +143,7 @@ export default function ProductPage() {
     const [selectedImage, setSelectedImage] = useState(0)
     const [quantity, setQuantity] = useState(1)
     const [isWishlisted, setIsWishlisted] = useState(false)
-    const [activeTab, setActiveTab] = useState<'description' | 'specs' | 'reviews'>('description')
+    const [activeTab, setActiveTab] = useState<'description' | 'specs'>('description')
     const [addedToCart, setAddedToCart] = useState(false)
     const { addItem, isInCart } = useCart()
 
@@ -463,7 +462,7 @@ export default function ProductPage() {
                 <div className="mt-12">
                     <div className="border-b border-gray-800">
                         <div className="flex gap-8">
-                            {(['description', 'specs', 'reviews'] as const).map((tab) => (
+                            {(['description', 'specs'] as const).map((tab) => (
                                 <button
                                     key={tab}
                                     onClick={() => setActiveTab(tab)}
@@ -533,13 +532,6 @@ export default function ProductPage() {
                                     </div>
                                 </div>
                             </div>
-                        )}
-
-                        {activeTab === 'reviews' && (
-                            <ProductReviews
-                                productSku={product.sku}
-                                productName={product.name}
-                            />
                         )}
                     </div>
                 </div>

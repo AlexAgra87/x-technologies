@@ -5,6 +5,10 @@ import { Product } from '../types'
 const RCT_API_BASE = process.env.RCT_API_BASE || 'https://rctdatafeed.azurewebsites.net'
 const RCT_USER_ID = process.env.RCT_USER_ID || '52dfb972-c9b7-4adf-a3db-ef5b1484ee42'
 
+// Pricing: X-Tech markup and VAT
+const MARKUP_RATE = 1.10  // 10% markup
+const VAT_RATE = 1.15     // 15% VAT (South Africa)
+
 // RCT API Response types (based on actual API)
 interface RCTApiProduct {
     href: string
@@ -32,10 +36,20 @@ interface RCTApiResponse {
 const cache = new NodeCache({ stdTTL: 900 })
 const CACHE_KEY = 'rct_products'
 const CACHE_KEY_INSTOCK = 'rct_products_instock'
+const CACHE_KEY_IMAGES = 'rct_images'
+
+// Image cache - maps SKU to image URLs (longer TTL - 24 hours)
+const imageCache = new NodeCache({ stdTTL: 86400 })
+
+interface RCTImageData {
+    imageUrl: string
+    shortDescription?: string
+}
 
 export class RCTService {
     private apiBase: string
     private userId: string
+    private imageFetchInProgress: boolean = false
 
     constructor() {
         this.apiBase = RCT_API_BASE
@@ -171,10 +185,18 @@ export class RCTService {
     }
 
     private transformProduct(raw: RCTApiProduct): Product {
-        const price = raw.sellingPrice || 0
+        // RCT sellingPrice is ex-VAT dealer cost
+        const costExVat = raw.sellingPrice || 0
+        // Apply 10% markup then add 15% VAT
+        const price = Math.round(costExVat * MARKUP_RATE * VAT_RATE)
+        const rrp = price // No RRP from RCT, use selling price
 
         // Calculate discount percentage (no RRP in this API, so no discount)
         const discount = 0
+
+        // Check if we have cached images for this product
+        const cachedImages = imageCache.get<string[]>(raw.code) || []
+        const featuredImage = cachedImages.length > 0 ? cachedImages[0] : ''
 
         return {
             id: `rct_${raw.code}`,
@@ -182,14 +204,14 @@ export class RCTService {
             name: raw.title,
             description: raw.description || '',
             price,
-            rrp: price,
+            rrp,
             supplier: 'rct',
             stock: {
                 total: raw.onHand || 0,
                 locations: {},
             },
-            featuredImage: '',
-            images: [],
+            featuredImage,
+            images: cachedImages,
             categories: [raw.productLine].filter(Boolean),
             categoryTree: raw.productLine || '',
             brand: raw.productLine || 'RCT',
@@ -281,9 +303,95 @@ export class RCTService {
         }
     }
 
+    // Fetch images for multiple products in parallel batches
+    async fetchImagesForProducts(products: Product[], batchSize: number = 50): Promise<number> {
+        if (!this.userId || this.imageFetchInProgress) {
+            return 0
+        }
+
+        this.imageFetchInProgress = true
+        let imagesFound = 0
+
+        try {
+            // Only fetch for products without images
+            const productsWithoutImages = products.filter(
+                p => !imageCache.get<string[]>(p.sku)?.length
+            )
+
+            console.log(`  📷 Fetching images for ${productsWithoutImages.length} RCT products without images...`)
+
+            // Process in batches to avoid overwhelming the API
+            for (let i = 0; i < productsWithoutImages.length; i += batchSize) {
+                const batch = productsWithoutImages.slice(i, i + batchSize)
+
+                const results = await Promise.allSettled(
+                    batch.map(async (product) => {
+                        try {
+                            const encodedSku = encodeURIComponent(product.sku)
+                            const response = await axios.get<RCTImageData[]>(
+                                `${this.apiBase}/api/${this.userId}/v1/Products/images/${encodedSku}`,
+                                {
+                                    timeout: 10000,
+                                    headers: { 'Accept': 'application/json' },
+                                }
+                            )
+
+                            const images = response.data
+                                ?.map((img: RCTImageData) => img.imageUrl)
+                                .filter(Boolean) || []
+
+                            if (images.length > 0) {
+                                imageCache.set(product.sku, images)
+                                return images.length
+                            }
+                            return 0
+                        } catch {
+                            return 0
+                        }
+                    })
+                )
+
+                // Count successful image fetches
+                for (const result of results) {
+                    if (result.status === 'fulfilled' && result.value > 0) {
+                        imagesFound++
+                    }
+                }
+
+                // Small delay between batches to be nice to the API
+                if (i + batchSize < productsWithoutImages.length) {
+                    await new Promise(resolve => setTimeout(resolve, 100))
+                }
+            }
+
+            console.log(`  📷 Found images for ${imagesFound} RCT products`)
+
+            // Clear the product cache so next fetch uses updated images
+            if (imagesFound > 0) {
+                cache.del(CACHE_KEY)
+            }
+
+            return imagesFound
+        } finally {
+            this.imageFetchInProgress = false
+        }
+    }
+
+    // Get image cache stats
+    getImageCacheStats(): { cached: number; total: number } {
+        return {
+            cached: imageCache.keys().length,
+            total: cache.get<Product[]>(CACHE_KEY)?.length || 0,
+        }
+    }
+
     clearCache(): void {
         cache.del(CACHE_KEY)
         cache.del(CACHE_KEY_INSTOCK)
+    }
+
+    clearImageCache(): void {
+        imageCache.flushAll()
     }
 }
 

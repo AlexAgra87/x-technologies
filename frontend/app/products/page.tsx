@@ -15,7 +15,7 @@ import {
     Check
 } from 'lucide-react'
 import { WootwareCard } from '@/components/products/WootwareCard'
-import { useProducts, useCategories, useBrands } from '@/lib/api'
+import { useProducts } from '@/lib/api'
 import { ProductFilters as FilterType } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
@@ -40,8 +40,21 @@ function ProductsContent() {
 
     // Fetch data
     const { data: productsData, isLoading, error } = useProducts(filters)
-    const { data: categories = [] } = useCategories()
-    const { data: brands = [] } = useBrands()
+
+    // Use contextual facets from products response instead of global categories/brands
+    const facets = productsData?.facets
+    const categories = facets?.categories?.map(f => ({
+        name: f.name,
+        slug: f.name.toLowerCase().replace(/\s+/g, '-'),
+        count: f.count,
+        productCount: f.count,
+    })) || []
+    const brands = facets?.brands?.map(f => ({
+        name: f.name,
+        slug: f.name.toLowerCase().replace(/\s+/g, '-'),
+        count: f.count,
+        productCount: f.count,
+    })) || []
 
     // Sync filters with URL when URL changes (e.g., clicking header nav links)
     useEffect(() => {
@@ -55,29 +68,38 @@ function ProductsContent() {
         const urlSortBy = searchParams.get('sortBy') as FilterType['sortBy'] || undefined
         const urlPage = Number(searchParams.get('page')) || 1
 
-        // Only update if URL params are different from current filters
-        if (
-            urlCategory !== filters.category ||
-            urlSearch !== filters.search ||
-            urlBrand !== filters.brand ||
-            urlMinPrice !== filters.minPrice ||
-            urlMaxPrice !== filters.maxPrice ||
-            urlInStock !== filters.inStock ||
-            urlSupplier !== filters.supplier ||
-            urlSortBy !== filters.sortBy
-        ) {
-            setFilters({
-                search: urlSearch,
-                category: urlCategory,
-                brand: urlBrand,
-                minPrice: urlMinPrice,
-                maxPrice: urlMaxPrice,
-                inStock: urlInStock,
-                supplier: urlSupplier,
-                sortBy: urlSortBy,
-                page: urlPage,
-                limit: 24,
-            })
+        // Collect all dynamic attribute filters from URL
+        const standardKeys = ['category', 'search', 'q', 'brand', 'minPrice', 'maxPrice', 'inStock', 'supplier', 'sortBy', 'page', 'limit']
+        const dynamicFilters: Record<string, string> = {}
+        searchParams.forEach((value, key) => {
+            if (!standardKeys.includes(key) && value) {
+                dynamicFilters[key] = value
+            }
+        })
+
+        // Build new filters object
+        const newFilters: FilterType = {
+            search: urlSearch,
+            category: urlCategory,
+            brand: urlBrand,
+            minPrice: urlMinPrice,
+            maxPrice: urlMaxPrice,
+            inStock: urlInStock,
+            supplier: urlSupplier,
+            sortBy: urlSortBy,
+            page: urlPage,
+            limit: 24,
+            ...dynamicFilters,
+        }
+
+        // Check if any filter value changed
+        const hasChanges = Object.keys({ ...filters, ...newFilters }).some(key => {
+            if (key === 'page' || key === 'limit') return false
+            return filters[key] !== newFilters[key]
+        })
+
+        if (hasChanges) {
+            setFilters(newFilters)
         }
     }, [searchParams])
 
@@ -97,7 +119,7 @@ function ProductsContent() {
         }
     }, [filters, router, searchParams])
 
-    const handleFilterChange = (key: keyof FilterType, value: any) => {
+    const handleFilterChange = (key: string, value: any) => {
         setFilters({ ...filters, [key]: value, page: 1 })
     }
 
@@ -119,6 +141,16 @@ function ProductsContent() {
         { value: 'newest', label: 'Newest First' },
     ]
 
+    // Standard filter keys that aren't displayed as active filter chips
+    const standardKeys = ['page', 'limit', 'sortBy']
+
+    // Get active dynamic attribute filters
+    const dynamicAttributeFilters = Object.entries(filters)
+        .filter(([key, value]) => {
+            const nonDynamicKeys = ['search', 'category', 'brand', 'minPrice', 'maxPrice', 'inStock', 'supplier', ...standardKeys]
+            return !nonDynamicKeys.includes(key) && value !== undefined && value !== ''
+        })
+
     const hasActiveFilters = !!(
         filters.search ||
         filters.category ||
@@ -126,7 +158,8 @@ function ProductsContent() {
         filters.minPrice ||
         filters.maxPrice ||
         filters.inStock ||
-        filters.supplier
+        filters.supplier ||
+        dynamicAttributeFilters.length > 0
     )
 
     // Filter sidebar component
@@ -180,37 +213,77 @@ function ProductsContent() {
                                 </button>
                             </span>
                         )}
+                        {/* Dynamic attribute filters */}
+                        {dynamicAttributeFilters.map(([key, value]) => {
+                            const attr = facets?.attributes?.find(a => a.key === key)
+                            return (
+                                <span key={key} className="inline-flex items-center gap-1 px-2 py-1 bg-teal-500/20 text-teal-400 text-xs rounded">
+                                    {attr?.name || key}: {String(value)}
+                                    <button onClick={() => handleFilterChange(key, undefined)}>
+                                        <X className="w-3 h-3" />
+                                    </button>
+                                </span>
+                            )
+                        })}
                     </div>
                 </div>
             )}
 
-            {/* Categories */}
-            <FilterSection title="Categories">
-                <div className="space-y-1 max-h-64 overflow-y-auto">
-                    {categories.map((category) => (
-                        <button
-                            key={category.slug}
-                            onClick={() => {
-                                handleFilterChange('category',
-                                    filters.category === category.name ? undefined : category.name
-                                )
-                                setMobileFiltersOpen(false)
-                            }}
-                            className={cn(
-                                "w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors",
-                                filters.category === category.name
-                                    ? "bg-teal-500/20 text-teal-400"
-                                    : "text-gray-400 hover:text-white hover:bg-dark-700"
-                            )}
-                        >
-                            <span>{category.name}</span>
-                            <span className="text-xs text-gray-500">
-                                ({category.count ?? category.productCount ?? 0})
-                            </span>
-                        </button>
-                    ))}
-                </div>
-            </FilterSection>
+            {/* Categories - only show when no category is selected */}
+            {!filters.category && (
+                <FilterSection title="Categories">
+                    <div className="space-y-1 max-h-64 overflow-y-auto">
+                        {categories.map((category) => (
+                            <button
+                                key={category.slug}
+                                onClick={() => {
+                                    handleFilterChange('category', category.name)
+                                    setMobileFiltersOpen(false)
+                                }}
+                                className={cn(
+                                    "w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors",
+                                    "text-gray-400 hover:text-white hover:bg-dark-700"
+                                )}
+                            >
+                                <span>{category.name}</span>
+                                <span className="text-xs text-gray-500">
+                                    ({category.count ?? category.productCount ?? 0})
+                                </span>
+                            </button>
+                        ))}
+                    </div>
+                </FilterSection>
+            )}
+
+            {/* Category-specific attributes - show when category is selected */}
+            {filters.category && facets?.attributes && facets.attributes.map((attr) => (
+                <FilterSection key={attr.key} title={attr.name}>
+                    <div className="space-y-1 max-h-64 overflow-y-auto">
+                        {attr.values.map((value) => (
+                            <button
+                                key={value.slug}
+                                onClick={() => {
+                                    const currentValue = filters[attr.key]
+                                    handleFilterChange(attr.key,
+                                        currentValue === value.name ? undefined : value.name
+                                    )
+                                }}
+                                className={cn(
+                                    "w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors",
+                                    filters[attr.key] === value.name
+                                        ? "bg-teal-500/20 text-teal-400"
+                                        : "text-gray-400 hover:text-white hover:bg-dark-700"
+                                )}
+                            >
+                                <span>{value.name}</span>
+                                <span className="text-xs text-gray-500">
+                                    ({value.count})
+                                </span>
+                            </button>
+                        ))}
+                    </div>
+                </FilterSection>
+            ))}
 
             {/* Brands */}
             <FilterSection title="Brands">

@@ -6,6 +6,10 @@ import { SyntechFeed, SyntechProduct, Product } from '../types'
 const SYNTECH_API_URL = process.env.SYNTECH_API_URL || 'https://www.syntech.co.za/feeds/feedhandler.php'
 const SYNTECH_API_KEY = process.env.SYNTECH_API_KEY || ''
 
+// Pricing: X-Tech markup and VAT
+const MARKUP_RATE = 1.10  // 10% markup
+const VAT_RATE = 1.15     // 15% VAT (South Africa)
+
 // Cache for 15 minutes
 const cache = new NodeCache({ stdTTL: 900 })
 const CACHE_KEY = 'syntech_products'
@@ -60,8 +64,14 @@ export class SyntechService {
     }
 
     private transformProduct(raw: SyntechProduct): Product {
-        const price = parseFloat(raw.price) || 0
-        const rrp = parseFloat(raw.rrp_incl) || price
+        // Syntech price is ex-VAT dealer cost
+        const costExVat = parseFloat(raw.price) || 0
+        // Apply 10% markup then add 15% VAT
+        const sellingPrice = Math.round(costExVat * MARKUP_RATE * VAT_RATE)
+        // RRP from supplier (already inc VAT) or use our selling price
+        const rrp = parseFloat(raw.rrp_incl) || sellingPrice
+        // Use the lower of our calculated price or supplier RRP
+        const price = Math.min(sellingPrice, rrp)
         const cptStock = parseInt(raw.cptstock) || 0
         const jhbStock = parseInt(raw.jhbstock) || 0
         const dbnStock = parseInt(raw.dbnstock) || 0

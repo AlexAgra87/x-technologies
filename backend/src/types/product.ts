@@ -55,9 +55,11 @@ export interface ProductFilters {
     maxPrice?: number
     inStock?: boolean
     supplier?: 'syntech' | 'rct' | 'frontosa' | 'all'
-    sortBy?: 'price-asc' | 'price-desc' | 'name' | 'newest' | 'popular'
+    sortBy?: 'price-asc' | 'price-desc' | 'price_asc' | 'price_desc' | 'name' | 'name-asc' | 'name-desc' | 'name_asc' | 'name_desc' | 'newest' | 'popular'
     page?: number
     limit?: number
+    // Dynamic attribute filters (e.g., gpuSeries=RTX 5090, memorySize=16GB)
+    [key: string]: string | number | boolean | undefined
 }
 
 export interface PaginatedResponse<T> {
@@ -70,6 +72,32 @@ export interface PaginatedResponse<T> {
         hasNext: boolean
         hasPrev: boolean
     }
+    facets?: Facets
+}
+
+// Faceted filtering - contextual filter options based on current selection
+export interface Facets {
+    categories: FacetItem[]
+    brands: FacetItem[]
+    priceRange: {
+        min: number
+        max: number
+    }
+    suppliers: FacetItem[]
+    // Dynamic category-specific attributes (e.g., GPU Series, Memory Size for Graphics cards)
+    attributes: CategoryAttribute[]
+}
+
+export interface CategoryAttribute {
+    name: string       // Display name (e.g., "GPU Series", "Memory Size")
+    key: string        // Filter key (e.g., "gpuSeries", "memorySize")
+    values: FacetItem[] // Available values with counts
+}
+
+export interface FacetItem {
+    name: string
+    slug: string
+    count: number
 }
 
 export interface Category {

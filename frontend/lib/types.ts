@@ -65,6 +65,8 @@ export interface ProductFilters {
     sortBy?: 'price_asc' | 'price_desc' | 'name_asc' | 'name_desc' | 'newest' | 'stock'
     page?: number
     limit?: number
+    // Dynamic attribute filters (e.g., gpuSeries, gpuMemory)
+    [key: string]: string | number | boolean | undefined
 }
 
 // Pagination
@@ -76,6 +78,32 @@ export interface PaginatedResponse<T> {
     totalPages: number
     hasNext: boolean
     hasPrev: boolean
+    facets?: Facets
+}
+
+// Faceted filtering - contextual filter options
+export interface Facets {
+    categories: FacetItem[]
+    brands: FacetItem[]
+    priceRange: {
+        min: number
+        max: number
+    }
+    suppliers: FacetItem[]
+    // Dynamic category-specific attributes (e.g., GPU Series, Memory Size)
+    attributes: CategoryAttribute[]
+}
+
+export interface CategoryAttribute {
+    name: string       // Display name (e.g., "GPU Series")
+    key: string        // Filter key (e.g., "gpuSeries")
+    values: FacetItem[] // Available values with counts
+}
+
+export interface FacetItem {
+    name: string
+    slug: string
+    count: number
 }
 
 // API Response

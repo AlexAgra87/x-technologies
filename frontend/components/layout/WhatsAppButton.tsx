@@ -72,21 +72,27 @@ export function WhatsAppButton() {
                         </div>
 
                         {/* Input Area */}
-                        <div className="p-3 bg-gray-100 flex gap-2">
-                            <input
-                                type="text"
-                                value={message}
-                                onChange={(e) => setMessage(e.target.value)}
-                                onKeyPress={handleKeyPress}
-                                placeholder="Type your message..."
-                                className="flex-1 px-4 py-2 rounded-full border border-gray-300 focus:outline-none focus:border-[#25D366] text-gray-800 text-sm"
-                            />
-                            <button
-                                onClick={handleSend}
-                                className="w-10 h-10 bg-[#25D366] rounded-full flex items-center justify-center hover:bg-[#20BD5A] transition-colors"
-                            >
-                                <Send className="w-5 h-5 text-white" />
-                            </button>
+                        <div className="p-3 bg-gray-100">
+                            <div className="flex gap-2">
+                                <input
+                                    type="text"
+                                    value={message}
+                                    onChange={(e) => setMessage(e.target.value)}
+                                    onKeyPress={handleKeyPress}
+                                    placeholder="Type your message..."
+                                    className="flex-1 px-4 py-2 rounded-full border border-gray-300 focus:outline-none focus:border-[#25D366] text-gray-800 text-sm"
+                                />
+                                <button
+                                    onClick={handleSend}
+                                    className="w-10 h-10 bg-[#25D366] rounded-full flex items-center justify-center hover:bg-[#20BD5A] transition-colors"
+                                >
+                                    <Send className="w-5 h-5 text-white" />
+                                </button>
+                            </div>
+                            <p className="text-[10px] text-gray-400 mt-2 text-center">
+                                Opens WhatsApp. By continuing, you agree to our{' '}
+                                <a href="/privacy" className="underline hover:text-gray-600">Privacy Policy</a>
+                            </p>
                         </div>
                     </motion.div>
                 )}
@@ -106,6 +112,8 @@ export function WhatsAppButton() {
                     damping: 20,
                     delay: 1
                 }}
+                aria-label={isOpen ? "Close WhatsApp chat" : "Chat with us on WhatsApp"}
+                title={isOpen ? "Close chat" : "Chat on WhatsApp"}
             >
                 {isOpen ? (
                     <X className="w-7 h-7 text-white" />

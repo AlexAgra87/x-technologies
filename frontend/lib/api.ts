@@ -1,4 +1,4 @@
-import { Product, Category, Brand, ProductFilters, PaginatedResponse, ApiResponse } from './types'
+import { Product, Category, Brand, ProductFilters, PaginatedResponse, ApiResponse, Facets } from './types'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api'
 
@@ -62,7 +62,11 @@ class ApiClient {
         }
 
         const queryString = params.toString()
-        const response = await this.fetch<{ data: any[]; pagination: { total: number; page: number; limit: number; totalPages: number; hasNext: boolean; hasPrev: boolean } }>(`/products${queryString ? `?${queryString}` : ''}`)
+        const response = await this.fetch<{
+            data: any[];
+            pagination: { total: number; page: number; limit: number; totalPages: number; hasNext: boolean; hasPrev: boolean };
+            facets?: Facets;
+        }>(`/products${queryString ? `?${queryString}` : ''}`)
 
         // Transform the response to match the PaginatedResponse interface
         return {
@@ -73,6 +77,7 @@ class ApiClient {
             totalPages: response.pagination?.totalPages || 1,
             hasNext: response.pagination?.hasNext || false,
             hasPrev: response.pagination?.hasPrev || false,
+            facets: response.facets,
         }
     }
 
