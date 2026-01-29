@@ -13,6 +13,7 @@ interface CartContextType {
     clearCart: () => void
     isInCart: (sku: string) => boolean
     getItemQuantity: (sku: string) => number
+    getItemMaxStock: (sku: string) => number
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined)
@@ -49,21 +50,28 @@ export function CartProvider({ children }: { children: ReactNode }) {
     const subtotal = items.reduce((sum, item) => sum + (item.product.price * item.quantity), 0)
 
     const addItem = (product: Product, quantity = 1) => {
+        // Get available stock
+        const stockQuantity = product.stock?.quantity ?? product.stock?.total ?? 999
+
         setItems(current => {
             const existingIndex = current.findIndex(item => item.product.sku === product.sku)
 
             if (existingIndex >= 0) {
-                // Update quantity of existing item
+                // Update quantity of existing item (limited by stock)
                 const updated = [...current]
+                const newQuantity = Math.min(
+                    updated[existingIndex].quantity + quantity,
+                    stockQuantity
+                )
                 updated[existingIndex] = {
                     ...updated[existingIndex],
-                    quantity: updated[existingIndex].quantity + quantity
+                    quantity: newQuantity
                 }
                 return updated
             }
 
-            // Add new item
-            return [...current, { product, quantity }]
+            // Add new item (limited by stock)
+            return [...current, { product, quantity: Math.min(quantity, stockQuantity) }]
         })
     }
 
@@ -78,11 +86,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
         }
 
         setItems(current =>
-            current.map(item =>
-                item.product.sku === sku
-                    ? { ...item, quantity }
-                    : item
-            )
+            current.map(item => {
+                if (item.product.sku === sku) {
+                    // Limit quantity by available stock
+                    const stockQuantity = item.product.stock?.quantity ?? item.product.stock?.total ?? 999
+                    return { ...item, quantity: Math.min(quantity, stockQuantity) }
+                }
+                return item
+            })
         )
     }
 
@@ -99,6 +110,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
         return item?.quantity || 0
     }
 
+    const getItemMaxStock = (sku: string) => {
+        const item = items.find(item => item.product.sku === sku)
+        if (!item) return 0
+        return item.product.stock?.quantity ?? item.product.stock?.total ?? 999
+    }
+
     return (
         <CartContext.Provider value={{
             items,
@@ -109,7 +126,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
             updateQuantity,
             clearCart,
             isInCart,
-            getItemQuantity
+            getItemQuantity,
+            getItemMaxStock
         }}>
             {children}
         </CartContext.Provider>

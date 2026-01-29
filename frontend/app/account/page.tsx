@@ -13,6 +13,7 @@ import {
     MapPin,
     LogOut,
     ChevronRight,
+    ChevronDown,
     Eye,
     EyeOff,
     Plus,
@@ -23,13 +24,16 @@ import {
     Truck,
     AlertCircle,
     CheckCircle,
-    RefreshCw
+    RefreshCw,
+    Heart,
+    History
 } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
+import { useWishlist } from '@/lib/wishlist-context'
 import { formatPrice } from '@/lib/utils'
 import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS, Order, UserAddress } from '@/lib/types/user'
 
-type Tab = 'profile' | 'orders' | 'addresses'
+type Tab = 'profile' | 'orders' | 'history' | 'wishlist'
 type AuthMode = 'login' | 'register' | 'verify' | 'forgot' | 'reset'
 
 export default function AccountPage() {
@@ -52,6 +56,7 @@ export default function AccountPage() {
         deleteAddress,
         setDefaultAddress
     } = useAuth()
+    const { items: wishlistItems, removeItem: removeFromWishlist, isLoading: wishlistLoading } = useWishlist()
 
     const [activeTab, setActiveTab] = useState<Tab>('profile')
 
@@ -656,7 +661,8 @@ export default function AccountPage() {
                         {[
                             { id: 'profile', label: 'Profile', icon: User },
                             { id: 'orders', label: 'Orders', icon: Package },
-                            { id: 'addresses', label: 'Addresses', icon: MapPin },
+                            { id: 'history', label: 'History', icon: History },
+                            { id: 'wishlist', label: 'Wishlist', icon: Heart },
                         ].map(tab => (
                             <button
                                 key={tab.id}
@@ -679,93 +685,177 @@ export default function AccountPage() {
 
                     {/* Profile Tab */}
                     {activeTab === 'profile' && (
-                        <motion.div
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="bg-dark-800 rounded-xl border border-gray-800 p-6"
-                        >
-                            <div className="flex items-center justify-between mb-6">
-                                <h2 className="text-xl font-semibold text-white">Profile Information</h2>
-                                <button
-                                    onClick={() => setIsEditingProfile(!isEditingProfile)}
-                                    className="flex items-center gap-2 px-3 py-1.5 text-sm text-teal-400 hover:bg-teal-500/10 rounded-lg transition-colors"
-                                >
-                                    <Edit2 className="w-4 h-4" />
-                                    {isEditingProfile ? 'Cancel' : 'Edit'}
-                                </button>
-                            </div>
-
-                            {isEditingProfile ? (
-                                <form onSubmit={handleProfileUpdate} className="space-y-4">
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-400 mb-2">First Name</label>
-                                            <input
-                                                type="text"
-                                                value={profileData.firstName}
-                                                onChange={(e) => setProfileData(p => ({ ...p, firstName: e.target.value }))}
-                                                className="w-full px-4 py-3 bg-dark-700 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-teal-500"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-400 mb-2">Last Name</label>
-                                            <input
-                                                type="text"
-                                                value={profileData.lastName}
-                                                onChange={(e) => setProfileData(p => ({ ...p, lastName: e.target.value }))}
-                                                className="w-full px-4 py-3 bg-dark-700 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-teal-500"
-                                            />
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-400 mb-2">Phone</label>
-                                        <input
-                                            type="tel"
-                                            value={profileData.phone}
-                                            onChange={(e) => setProfileData(p => ({ ...p, phone: e.target.value }))}
-                                            className="w-full px-4 py-3 bg-dark-700 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-teal-500"
-                                        />
-                                    </div>
-                                    <div className="flex justify-end gap-3">
-                                        <button
-                                            type="button"
-                                            onClick={() => setIsEditingProfile(false)}
-                                            className="px-4 py-2 text-gray-400 hover:text-white"
-                                        >
-                                            Cancel
-                                        </button>
-                                        <button
-                                            type="submit"
-                                            disabled={isSubmitting}
-                                            className="px-4 py-2 bg-teal-500 text-black font-medium rounded-lg hover:bg-teal-400 disabled:opacity-50"
-                                        >
-                                            {isSubmitting ? 'Saving...' : 'Save Changes'}
-                                        </button>
-                                    </div>
-                                </form>
-                            ) : (
-                                <div className="space-y-4">
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        <div>
-                                            <p className="text-sm text-gray-500">First Name</p>
-                                            <p className="text-white">{user?.firstName}</p>
-                                        </div>
-                                        <div>
-                                            <p className="text-sm text-gray-500">Last Name</p>
-                                            <p className="text-white">{user?.lastName}</p>
-                                        </div>
-                                        <div>
-                                            <p className="text-sm text-gray-500">Email</p>
-                                            <p className="text-white">{user?.email}</p>
-                                        </div>
-                                        <div>
-                                            <p className="text-sm text-gray-500">Phone</p>
-                                            <p className="text-white">{user?.phone || 'Not set'}</p>
-                                        </div>
-                                    </div>
+                        <>
+                            <motion.div
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="bg-dark-800 rounded-xl border border-gray-800 p-6"
+                            >
+                                <div className="flex items-center justify-between mb-6">
+                                    <h2 className="text-xl font-semibold text-white">Profile Information</h2>
+                                    <button
+                                        onClick={() => setIsEditingProfile(!isEditingProfile)}
+                                        className="flex items-center gap-2 px-3 py-1.5 text-sm text-teal-400 hover:bg-teal-500/10 rounded-lg transition-colors"
+                                    >
+                                        <Edit2 className="w-4 h-4" />
+                                        {isEditingProfile ? 'Cancel' : 'Edit'}
+                                    </button>
                                 </div>
-                            )}
-                        </motion.div>
+
+                                {isEditingProfile ? (
+                                    <form onSubmit={handleProfileUpdate} className="space-y-4">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-400 mb-2">First Name</label>
+                                                <input
+                                                    type="text"
+                                                    value={profileData.firstName}
+                                                    onChange={(e) => setProfileData(p => ({ ...p, firstName: e.target.value }))}
+                                                    className="w-full px-4 py-3 bg-dark-700 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-teal-500"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-400 mb-2">Last Name</label>
+                                                <input
+                                                    type="text"
+                                                    value={profileData.lastName}
+                                                    onChange={(e) => setProfileData(p => ({ ...p, lastName: e.target.value }))}
+                                                    className="w-full px-4 py-3 bg-dark-700 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-teal-500"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-400 mb-2">Phone</label>
+                                            <input
+                                                type="tel"
+                                                value={profileData.phone}
+                                                onChange={(e) => setProfileData(p => ({ ...p, phone: e.target.value }))}
+                                                className="w-full px-4 py-3 bg-dark-700 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-teal-500"
+                                            />
+                                        </div>
+                                        <div className="flex justify-end gap-3">
+                                            <button
+                                                type="button"
+                                                onClick={() => setIsEditingProfile(false)}
+                                                className="px-4 py-2 text-gray-400 hover:text-white"
+                                            >
+                                                Cancel
+                                            </button>
+                                            <button
+                                                type="submit"
+                                                disabled={isSubmitting}
+                                                className="px-4 py-2 bg-teal-500 text-black font-medium rounded-lg hover:bg-teal-400 disabled:opacity-50"
+                                            >
+                                                {isSubmitting ? 'Saving...' : 'Save Changes'}
+                                            </button>
+                                        </div>
+                                    </form>
+                                ) : (
+                                    <div className="space-y-4">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            <div>
+                                                <p className="text-sm text-gray-500">First Name</p>
+                                                <p className="text-white">{user?.firstName}</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-sm text-gray-500">Last Name</p>
+                                                <p className="text-white">{user?.lastName}</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-sm text-gray-500">Email</p>
+                                                <p className="text-white">{user?.email}</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-sm text-gray-500">Phone</p>
+                                                <p className="text-white">{user?.phone || 'Not set'}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </motion.div>
+
+                            {/* Saved Addresses */}
+                            <motion.div
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.1 }}
+                                className="bg-dark-800 rounded-xl border border-gray-800 p-6 mt-6"
+                            >
+                                <div className="flex items-center justify-between mb-6">
+                                    <div className="flex items-center gap-3">
+                                        <MapPin className="w-5 h-5 text-teal-400" />
+                                        <h2 className="text-xl font-semibold text-white">Saved Addresses</h2>
+                                    </div>
+                                    <button
+                                        onClick={() => {
+                                            resetAddressForm()
+                                            setShowAddressModal(true)
+                                        }}
+                                        className="flex items-center gap-2 px-3 py-1.5 text-sm text-teal-400 hover:bg-teal-500/10 rounded-lg transition-colors"
+                                    >
+                                        <Plus className="w-4 h-4" />
+                                        Add New
+                                    </button>
+                                </div>
+
+                                {(!user?.addresses || user.addresses.length === 0) ? (
+                                    <div className="text-center py-8">
+                                        <MapPin className="w-12 h-12 text-gray-600 mx-auto mb-3" />
+                                        <p className="text-gray-400">No addresses saved yet</p>
+                                        <p className="text-sm text-gray-500">Add an address for faster checkout</p>
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {user.addresses.map(address => (
+                                            <div
+                                                key={address.id}
+                                                className={`bg-dark-700 rounded-lg border p-4 relative ${address.isDefault ? 'border-teal-500/50' : 'border-gray-700'}`}
+                                            >
+                                                {address.isDefault && (
+                                                    <span className="absolute top-3 right-3 px-2 py-0.5 bg-teal-500/20 text-teal-400 text-xs rounded-full flex items-center gap-1">
+                                                        <Check className="w-3 h-3" />
+                                                        Default
+                                                    </span>
+                                                )}
+                                                <h4 className="font-medium text-white mb-1">{address.label}</h4>
+                                                <p className="text-gray-400 text-sm">
+                                                    {address.firstName} {address.lastName}<br />
+                                                    {address.address}<br />
+                                                    {address.city}, {address.province} {address.postalCode}
+                                                </p>
+                                                <p className="text-gray-500 text-xs mt-1">{address.phone}</p>
+
+                                                <div className="flex gap-3 mt-3 pt-3 border-t border-gray-600">
+                                                    <button
+                                                        onClick={() => openEditAddress(address)}
+                                                        className="text-xs text-teal-400 hover:text-teal-300 flex items-center gap-1"
+                                                    >
+                                                        <Edit2 className="w-3 h-3" />
+                                                        Edit
+                                                    </button>
+                                                    {!address.isDefault && (
+                                                        <button
+                                                            onClick={() => setDefaultAddress(address.id)}
+                                                            className="text-xs text-gray-400 hover:text-white flex items-center gap-1"
+                                                        >
+                                                            <Check className="w-3 h-3" />
+                                                            Set Default
+                                                        </button>
+                                                    )}
+                                                    <button
+                                                        onClick={() => handleDeleteAddress(address.id)}
+                                                        className="text-xs text-red-400 hover:text-red-300 flex items-center gap-1"
+                                                    >
+                                                        <Trash2 className="w-3 h-3" />
+                                                        Delete
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </motion.div>
+                        </>
                     )}
 
                     {/* Orders Tab */}
@@ -843,79 +933,96 @@ export default function AccountPage() {
                         </motion.div>
                     )}
 
-                    {/* Addresses Tab */}
-                    {activeTab === 'addresses' && (
+                    {/* History Tab */}
+                    {activeTab === 'history' && (
                         <motion.div
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             className="space-y-4"
                         >
-                            <div className="flex justify-end mb-4">
-                                <button
-                                    onClick={() => {
-                                        resetAddressForm()
-                                        setShowAddressModal(true)
-                                    }}
-                                    className="flex items-center gap-2 px-4 py-2 bg-teal-500 text-black font-medium rounded-lg hover:bg-teal-400"
-                                >
-                                    <Plus className="w-5 h-5" />
-                                    Add Address
-                                </button>
-                            </div>
-
-                            {(!user?.addresses || user.addresses.length === 0) ? (
+                            {orders.filter(o => o.status === 'delivered' || o.status === 'cancelled').length === 0 ? (
                                 <div className="bg-dark-800 rounded-xl border border-gray-800 p-12 text-center">
-                                    <MapPin className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-                                    <h3 className="text-xl font-medium text-white mb-2">No addresses saved</h3>
-                                    <p className="text-gray-400">Add an address for faster checkout.</p>
+                                    <History className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+                                    <h3 className="text-xl font-medium text-white mb-2">No order history</h3>
+                                    <p className="text-gray-400 mb-6">Your completed and cancelled orders will appear here.</p>
                                 </div>
                             ) : (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {user.addresses.map(address => (
-                                        <div
-                                            key={address.id}
-                                            className={`bg-dark-800 rounded-xl border p-6 relative ${address.isDefault ? 'border-teal-500/50' : 'border-gray-800'
-                                                }`}
-                                        >
-                                            {address.isDefault && (
-                                                <span className="absolute top-4 right-4 px-2 py-1 bg-teal-500/20 text-teal-400 text-xs rounded-full flex items-center gap-1">
-                                                    <Check className="w-3 h-3" />
-                                                    Default
-                                                </span>
-                                            )}
-                                            <h3 className="font-medium text-white mb-2">{address.label}</h3>
-                                            <p className="text-gray-400 text-sm">
-                                                {address.firstName} {address.lastName}<br />
-                                                {address.address}<br />
-                                                {address.city}, {address.province} {address.postalCode}
-                                            </p>
-                                            <p className="text-gray-500 text-sm mt-2">{address.phone}</p>
-
-                                            <div className="flex gap-3 mt-4">
-                                                <button
-                                                    onClick={() => openEditAddress(address)}
-                                                    className="text-sm text-teal-400 hover:text-teal-300 flex items-center gap-1"
-                                                >
-                                                    <Edit2 className="w-4 h-4" />
-                                                    Edit
-                                                </button>
-                                                {!address.isDefault && (
-                                                    <button
-                                                        onClick={() => setDefaultAddress(address.id)}
-                                                        className="text-sm text-gray-400 hover:text-white flex items-center gap-1"
-                                                    >
-                                                        <Check className="w-4 h-4" />
-                                                        Set Default
-                                                    </button>
-                                                )}
-                                                <button
-                                                    onClick={() => handleDeleteAddress(address.id)}
-                                                    className="text-sm text-red-400 hover:text-red-300 flex items-center gap-1"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                    Delete
-                                                </button>
+                                orders.filter(o => o.status === 'delivered' || o.status === 'cancelled').map(order => (
+                                    <div key={order.id} className="bg-dark-800 rounded-xl border border-gray-800 p-6">
+                                        <div className="flex items-center justify-between mb-4">
+                                            <div>
+                                                <p className="text-sm text-gray-400">Order #{order.orderRef}</p>
+                                                <p className="text-xs text-gray-500">{new Date(order.createdAt).toLocaleDateString()}</p>
                                             </div>
+                                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${ORDER_STATUS_COLORS[order.status]}`}>
+                                                {ORDER_STATUS_LABELS[order.status]}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <p className="text-white font-medium">{formatPrice(order.total)}</p>
+                                            <p className="text-gray-400 text-sm">{order.items.length} item(s)</p>
+                                        </div>
+                                        <button
+                                            onClick={() => setSelectedOrder(order)}
+                                            className="mt-4 text-teal-400 hover:text-teal-300 text-sm flex items-center gap-1"
+                                        >
+                                            View Details
+                                            <ChevronRight className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                ))
+                            )}
+                        </motion.div>
+                    )}
+
+                    {/* Wishlist Tab */}
+                    {activeTab === 'wishlist' && (
+                        <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="space-y-4"
+                        >
+                            {wishlistLoading ? (
+                                <div className="bg-dark-800 rounded-xl border border-gray-800 p-12 text-center">
+                                    <RefreshCw className="w-8 h-8 text-gray-400 animate-spin mx-auto mb-4" />
+                                    <p className="text-gray-400">Loading wishlist...</p>
+                                </div>
+                            ) : wishlistItems.length === 0 ? (
+                                <div className="bg-dark-800 rounded-xl border border-gray-800 p-12 text-center">
+                                    <Heart className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+                                    <h3 className="text-xl font-medium text-white mb-2">Your wishlist is empty</h3>
+                                    <p className="text-gray-400 mb-6">Save items you love by clicking the heart icon.</p>
+                                    <Link
+                                        href="/products"
+                                        className="inline-flex items-center gap-2 px-6 py-3 bg-teal-500 text-black font-medium rounded-lg hover:bg-teal-400"
+                                    >
+                                        Browse Products
+                                    </Link>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    {wishlistItems.map(item => (
+                                        <div key={item.sku} className="bg-dark-800 rounded-xl border border-gray-800 p-4">
+                                            <Link href={`/products/${item.sku}`} className="block">
+                                                <div className="aspect-square bg-dark-700 rounded-lg mb-3 overflow-hidden">
+                                                    {item.images?.[0] ? (
+                                                        <img src={item.images?.[0]} alt={item.name} className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        <div className="w-full h-full flex items-center justify-center">
+                                                            <Package className="w-12 h-12 text-gray-600" />
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <h3 className="text-white font-medium text-sm line-clamp-2 mb-2">{item.name}</h3>
+                                                <p className="text-teal-400 font-semibold">{formatPrice(item.price)}</p>
+                                            </Link>
+                                            <button
+                                                onClick={() => removeFromWishlist(item.sku)}
+                                                className="mt-3 w-full flex items-center justify-center gap-2 px-3 py-2 text-sm text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                                Remove
+                                            </button>
                                         </div>
                                     ))}
                                 </div>
@@ -1086,23 +1193,26 @@ export default function AccountPage() {
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-400 mb-2">Province</label>
-                                    <select
-                                        value={addressFormData.province}
-                                        onChange={(e) => setAddressFormData(p => ({ ...p, province: e.target.value }))}
-                                        required
-                                        className="w-full px-4 py-3 bg-dark-700 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-teal-500"
-                                    >
-                                        <option value="">Select</option>
-                                        <option value="Eastern Cape">Eastern Cape</option>
-                                        <option value="Free State">Free State</option>
-                                        <option value="Gauteng">Gauteng</option>
-                                        <option value="KwaZulu-Natal">KwaZulu-Natal</option>
-                                        <option value="Limpopo">Limpopo</option>
-                                        <option value="Mpumalanga">Mpumalanga</option>
-                                        <option value="Northern Cape">Northern Cape</option>
-                                        <option value="North West">North West</option>
-                                        <option value="Western Cape">Western Cape</option>
-                                    </select>
+                                    <div className="relative">
+                                        <select
+                                            value={addressFormData.province}
+                                            onChange={(e) => setAddressFormData(p => ({ ...p, province: e.target.value }))}
+                                            required
+                                            className="w-full px-4 py-3 pr-10 bg-dark-700 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-teal-500 appearance-none cursor-pointer"
+                                        >
+                                            <option value="">Select</option>
+                                            <option value="Eastern Cape">Eastern Cape</option>
+                                            <option value="Free State">Free State</option>
+                                            <option value="Gauteng">Gauteng</option>
+                                            <option value="KwaZulu-Natal">KwaZulu-Natal</option>
+                                            <option value="Limpopo">Limpopo</option>
+                                            <option value="Mpumalanga">Mpumalanga</option>
+                                            <option value="Northern Cape">Northern Cape</option>
+                                            <option value="North West">North West</option>
+                                            <option value="Western Cape">Western Cape</option>
+                                        </select>
+                                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+                                    </div>
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-400 mb-2">Postal Code</label>

@@ -90,8 +90,11 @@ export interface Order {
         postalCode: string
     }
     notes?: string
-    // Tracking info
-    supplierOrderRef?: string  // Reference from Syntech/RCT
+    // Supplier info (when ordering from Syntech/RCT/etc)
+    supplierName?: string      // 'Syntech', 'RCT', 'Frontosa', etc.
+    supplierOrderRef?: string  // Reference from supplier
+    // Shipping/tracking info
+    courierName?: string       // 'The Courier Guy', 'RAM', 'Aramex', etc.
     trackingNumber?: string
     trackingUrl?: string
     // Timestamps
@@ -116,7 +119,9 @@ export interface CreateOrderData {
 export interface UpdateOrderData {
     status?: OrderStatus
     notes?: string
+    supplierName?: string
     supplierOrderRef?: string
+    courierName?: string
     trackingNumber?: string
     trackingUrl?: string
 }

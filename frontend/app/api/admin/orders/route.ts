@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb'
 import { DynamoDBDocumentClient, ScanCommand } from '@aws-sdk/lib-dynamodb'
 import { awsConfig } from '@/lib/aws-config'
+import { checkRateLimit, getClientIp, rateLimitConfigs } from '@/lib/rate-limit'
 
 // Initialize AWS clients
 const dynamoClient = new DynamoDBClient({
@@ -19,11 +20,50 @@ const dynamoClient = new DynamoDBClient({
 
 const docClient = DynamoDBDocumentClient.from(dynamoClient)
 
+// Admin credentials (in production, use proper auth service)
+const ADMIN_CREDENTIALS = {
+    email: 'admin@x-tech.co.za',
+    // In production, verify against Cognito admin group
+}
+
+// Verify admin authentication
+function verifyAdminAuth(request: NextRequest): boolean {
+    const authHeader = request.headers.get('x-admin-auth')
+    if (!authHeader) return false
+
+    try {
+        // Decode base64 auth header
+        const decoded = Buffer.from(authHeader, 'base64').toString('utf-8')
+        const [email, password] = decoded.split(':')
+
+        // Verify credentials (in production, use Cognito or proper auth)
+        return email === ADMIN_CREDENTIALS.email && password === 'admin123'
+    } catch {
+        return false
+    }
+}
+
 // GET - Get all orders (admin only)
 export async function GET(request: NextRequest) {
     try {
-        // In production, verify admin authentication here
-        // For now, we'll allow access (the admin page handles auth)
+        // Check rate limit
+        const clientIp = getClientIp(request)
+        const rateLimitResult = checkRateLimit(clientIp, 'admin', rateLimitConfigs.admin)
+
+        if (!rateLimitResult.allowed) {
+            return NextResponse.json(
+                { error: 'Too many requests. Please try again later.' },
+                { status: 429 }
+            )
+        }
+
+        // Verify admin authentication
+        if (!verifyAdminAuth(request)) {
+            return NextResponse.json(
+                { error: 'Unauthorized - Admin access required' },
+                { status: 401 }
+            )
+        }
 
         const { searchParams } = new URL(request.url)
         const status = searchParams.get('status')

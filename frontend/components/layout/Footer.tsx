@@ -26,6 +26,7 @@ const footerLinks = {
     support: [
         { name: 'Contact Us', href: '/contact' },
         { name: 'FAQ', href: '/faq' },
+        { name: 'Track Order', href: '/track-order' },
         { name: 'Shipping Info', href: '/shipping' },
         { name: 'Returns', href: '/returns' },
         { name: 'Warranty', href: '/warranty' },

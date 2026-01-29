@@ -1,9 +1,14 @@
 'use client'
 
 import { usePathname } from 'next/navigation'
+import dynamic from 'next/dynamic'
 import { Header } from '@/components/layout/Header'
 import { Footer } from '@/components/layout/Footer'
-import { WhatsAppButton } from '@/components/layout/WhatsAppButton'
+
+// Lazy load WhatsAppButton as it uses framer-motion
+const WhatsAppButton = dynamic(() => import('@/components/layout/WhatsAppButton').then(mod => ({ default: mod.WhatsAppButton })), {
+    ssr: false,
+})
 
 export function LayoutWrapper({ children }: { children: React.ReactNode }) {
     const pathname = usePathname()

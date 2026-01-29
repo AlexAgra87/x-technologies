@@ -15,6 +15,7 @@ interface ProductImageProps {
     containerClassName?: string
     priority?: boolean
     sizes?: string
+    loading?: 'lazy' | 'eager'
 }
 
 // Decode HTML entities in URLs (e.g., &#x2122; -> ™)
@@ -44,7 +45,8 @@ export function ProductImage({
     className,
     containerClassName,
     priority = false,
-    sizes = '(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw'
+    sizes = '(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw',
+    loading = 'lazy'
 }: ProductImageProps) {
     const [imageError, setImageError] = useState(false)
 
@@ -57,11 +59,15 @@ export function ProductImage({
     // Show fallback placeholder if no valid src or error occurred
     if (imageError || !cleanSrc) {
         return (
-            <div className={cn(
-                "flex items-center justify-center bg-gray-100",
-                fill ? "absolute inset-0" : "w-full h-full"
-            )}>
-                <Package className="w-12 h-12 text-gray-400" />
+            <div
+                className={cn(
+                    "flex items-center justify-center bg-gray-100",
+                    fill ? "absolute inset-0" : "w-full h-full"
+                )}
+                role="img"
+                aria-label={alt || 'Product image unavailable'}
+            >
+                <Package className="w-12 h-12 text-gray-400" aria-hidden="true" />
             </div>
         )
     }
@@ -75,6 +81,7 @@ export function ProductImage({
                 className={cn("object-contain", className)}
                 onError={() => setImageError(true)}
                 priority={priority}
+                loading={priority ? 'eager' : loading}
                 sizes={sizes}
                 unoptimized
             />
@@ -90,6 +97,7 @@ export function ProductImage({
             className={cn("object-contain", className)}
             onError={() => setImageError(true)}
             priority={priority}
+            loading={priority ? 'eager' : loading}
             unoptimized
         />
     )

@@ -1,51 +1,24 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { Heart, ShoppingCart, Trash2, ArrowRight, Package } from 'lucide-react'
+import { Heart, ShoppingCart, Trash2, ArrowRight, Package, CheckCircle } from 'lucide-react'
 import { Product } from '@/lib/types'
 import { formatPrice } from '@/lib/utils'
 import { useCart } from '@/lib/cart-context'
+import { useWishlist } from '@/lib/wishlist-context'
 import { ProductImage } from '@/components/ui/ProductImage'
 
-const WISHLIST_KEY = 'xtech-wishlist'
-
 export default function WishlistPage() {
-    const [wishlistItems, setWishlistItems] = useState<Product[]>([])
-    const [isLoading, setIsLoading] = useState(true)
+    const { items: wishlistItems, removeItem, isLoading, clearWishlist } = useWishlist()
     const { addItem, isInCart } = useCart()
     const [addedToCart, setAddedToCart] = useState<string | null>(null)
-
-    useEffect(() => {
-        // Load wishlist from localStorage
-        const stored = localStorage.getItem(WISHLIST_KEY)
-        if (stored) {
-            try {
-                const items = JSON.parse(stored)
-                setWishlistItems(items)
-            } catch (e) {
-                console.error('Error loading wishlist:', e)
-            }
-        }
-        setIsLoading(false)
-    }, [])
-
-    const removeFromWishlist = (sku: string) => {
-        const updated = wishlistItems.filter(item => item.sku !== sku)
-        setWishlistItems(updated)
-        localStorage.setItem(WISHLIST_KEY, JSON.stringify(updated))
-    }
 
     const handleAddToCart = (product: Product) => {
         addItem(product)
         setAddedToCart(product.sku)
         setTimeout(() => setAddedToCart(null), 2000)
-    }
-
-    const clearWishlist = () => {
-        setWishlistItems([])
-        localStorage.removeItem(WISHLIST_KEY)
     }
 
     if (isLoading) {
@@ -113,7 +86,11 @@ export default function WishlistPage() {
                                 {wishlistItems.length} item{wishlistItems.length > 1 ? 's' : ''} in your wishlist
                             </p>
                             <button
-                                onClick={clearWishlist}
+                                onClick={() => {
+                                    if (window.confirm('Are you sure you want to clear your entire wishlist? This action cannot be undone.')) {
+                                        clearWishlist()
+                                    }
+                                }}
                                 className="flex items-center gap-2 px-4 py-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors text-sm"
                             >
                                 <Trash2 className="w-4 h-4" />
@@ -172,15 +149,15 @@ export default function WishlistPage() {
                                             <button
                                                 onClick={() => handleAddToCart(product)}
                                                 className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg font-medium text-sm transition-all ${addedToCart === product.sku || isInCart(product.sku)
-                                                        ? 'bg-green-500 text-white'
-                                                        : 'bg-teal-500 text-black hover:bg-teal-400'
+                                                    ? 'bg-green-500 text-white'
+                                                    : 'bg-teal-500 text-black hover:bg-teal-400'
                                                     }`}
                                             >
                                                 <ShoppingCart className="w-4 h-4" />
                                                 {addedToCart === product.sku ? 'Added!' : isInCart(product.sku) ? 'In Cart' : 'Add to Cart'}
                                             </button>
                                             <button
-                                                onClick={() => removeFromWishlist(product.sku)}
+                                                onClick={() => removeItem(product.sku)}
                                                 className="p-2.5 rounded-lg bg-dark-700 hover:bg-red-500/20 hover:text-red-400 text-gray-400 transition-all"
                                                 title="Remove from wishlist"
                                             >

@@ -11,6 +11,7 @@ import { awsConfig } from '@/lib/aws-config'
 import { Order, CreateOrderData } from '@/lib/types/user'
 import { generateOrderConfirmationEmail, generateAdminNotificationEmail } from '@/lib/email-templates'
 import { getInvoiceAsBase64 } from '@/lib/pdf-invoice'
+import { checkRateLimit, getClientIp, rateLimitConfigs } from '@/lib/rate-limit'
 
 // Initialize AWS clients
 const dynamoClient = new DynamoDBClient({
@@ -77,6 +78,23 @@ async function sendEmail(to: string, subject: string, html: string) {
 // POST - Create a new order
 export async function POST(request: NextRequest) {
     try {
+        // Check rate limit
+        const clientIp = getClientIp(request)
+        const rateLimitResult = checkRateLimit(clientIp, 'orders', rateLimitConfigs.orders)
+
+        if (!rateLimitResult.allowed) {
+            return NextResponse.json(
+                { error: 'Too many orders. Please try again later.' },
+                {
+                    status: 429,
+                    headers: {
+                        'Retry-After': String(Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000)),
+                        'X-RateLimit-Remaining': '0',
+                    }
+                }
+            )
+        }
+
         const body = await request.json()
         const { orderData, userId, userEmail } = body as {
             orderData: CreateOrderData
@@ -92,7 +110,68 @@ export async function POST(request: NextRequest) {
             )
         }
 
-        // Create the order
+        // Validate email format
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+        if (!emailRegex.test(userEmail)) {
+            return NextResponse.json(
+                { error: 'Invalid email format' },
+                { status: 400 }
+            )
+        }
+
+        // Validate order items
+        if (!Array.isArray(orderData.items) || orderData.items.length === 0) {
+            return NextResponse.json(
+                { error: 'Order must contain at least one item' },
+                { status: 400 }
+            )
+        }
+
+        // Validate each item has required fields
+        for (const item of orderData.items) {
+            if (!item.sku || !item.name || typeof item.price !== 'number' || typeof item.quantity !== 'number') {
+                return NextResponse.json(
+                    { error: 'Invalid item data' },
+                    { status: 400 }
+                )
+            }
+            if (item.price < 0 || item.quantity < 1) {
+                return NextResponse.json(
+                    { error: 'Invalid item price or quantity' },
+                    { status: 400 }
+                )
+            }
+        }
+
+        // Validate shipping address
+        const addr = orderData.shippingAddress
+        if (!addr?.firstName || !addr?.lastName || !addr?.email ||
+            !addr?.phone || !addr?.address ||
+            !addr?.city || !addr?.postalCode) {
+            return NextResponse.json(
+                { error: 'Incomplete shipping address' },
+                { status: 400 }
+            )
+        }
+
+        // Re-calculate totals server-side for security
+        const calculatedSubtotal = orderData.items.reduce(
+            (sum, item) => sum + (item.price * item.quantity), 0
+        )
+        const shippingCost = calculatedSubtotal >= 2000 ? 0 : orderData.shippingCost || 150
+        const calculatedTotal = calculatedSubtotal + shippingCost
+
+        // Allow small rounding differences (up to R1)
+        if (Math.abs(calculatedTotal - orderData.total) > 1) {
+            console.warn('Price mismatch detected:', {
+                clientTotal: orderData.total,
+                serverTotal: calculatedTotal,
+                difference: orderData.total - calculatedTotal
+            })
+            // Use server-calculated values
+        }
+
+        // Create the order with server-validated values
         const now = new Date().toISOString()
         const order: Order = {
             id: generateId(),
@@ -100,9 +179,9 @@ export async function POST(request: NextRequest) {
             userId,
             userEmail,
             items: orderData.items,
-            subtotal: orderData.subtotal,
-            shippingCost: orderData.shippingCost,
-            total: orderData.total,
+            subtotal: calculatedSubtotal,  // Use server-calculated
+            shippingCost: shippingCost,    // Use server-calculated
+            total: calculatedTotal,         // Use server-calculated
             status: 'pending_payment',
             shippingAddress: orderData.shippingAddress,
             createdAt: now,
@@ -221,11 +300,33 @@ export async function GET(request: NextRequest) {
     }
 }
 
-// PATCH - Update order status (admin)
+// Verify admin authentication for order updates
+function verifyAdminAuth(request: NextRequest): boolean {
+    const authHeader = request.headers.get('x-admin-auth')
+    if (!authHeader) return false
+
+    try {
+        const decoded = Buffer.from(authHeader, 'base64').toString('utf-8')
+        const [email, password] = decoded.split(':')
+        return email === 'admin@x-tech.co.za' && password === 'admin123'
+    } catch {
+        return false
+    }
+}
+
+// PATCH - Update order status (admin only)
 export async function PATCH(request: NextRequest) {
     try {
+        // Verify admin authentication
+        if (!verifyAdminAuth(request)) {
+            return NextResponse.json(
+                { error: 'Unauthorized - Admin access required' },
+                { status: 401 }
+            )
+        }
+
         const body = await request.json()
-        const { orderId, userId, status, trackingNumber, trackingUrl, supplierOrderRef, notes } = body
+        const { orderId, userId, status, trackingNumber, trackingUrl, supplierOrderRef, supplierName, courierName, notes } = body
 
         if (!orderId || !userId) {
             return NextResponse.json(
@@ -273,6 +374,16 @@ export async function PATCH(request: NextRequest) {
         if (supplierOrderRef) {
             updateExpressions.push('supplierOrderRef = :supplierOrderRef')
             expressionValues[':supplierOrderRef'] = supplierOrderRef
+        }
+
+        if (supplierName) {
+            updateExpressions.push('supplierName = :supplierName')
+            expressionValues[':supplierName'] = supplierName
+        }
+
+        if (courierName) {
+            updateExpressions.push('courierName = :courierName')
+            expressionValues[':courierName'] = courierName
         }
 
         if (notes !== undefined) {

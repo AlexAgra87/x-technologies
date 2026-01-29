@@ -4,12 +4,12 @@ import { useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { motion } from 'framer-motion'
-import { 
-    ShoppingCart, 
-    Trash2, 
-    Plus, 
-    Minus, 
-    ArrowRight, 
+import {
+    ShoppingCart,
+    Trash2,
+    Plus,
+    Minus,
+    ArrowRight,
     Package,
     ShoppingBag,
     ArrowLeft
@@ -18,13 +18,13 @@ import { useCart } from '@/lib/cart-context'
 import { formatPrice } from '@/lib/utils'
 
 export default function CartPage() {
-    const { items, itemCount, subtotal, updateQuantity, removeItem, clearCart } = useCart()
-    
+    const { items, itemCount, subtotal, updateQuantity, removeItem, clearCart, getItemMaxStock } = useCart()
+
     if (items.length === 0) {
         return (
             <div className="min-h-screen bg-dark-900 pt-24">
                 <div className="container mx-auto px-4 py-12">
-                    <motion.div 
+                    <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         className="text-center py-20"
@@ -36,7 +36,7 @@ export default function CartPage() {
                         <p className="text-gray-400 mb-8 max-w-md mx-auto">
                             Looks like you haven't added any products yet. Start shopping to fill your cart!
                         </p>
-                        <Link 
+                        <Link
                             href="/products"
                             className="inline-flex items-center gap-2 px-6 py-3 bg-teal-500 text-black font-semibold rounded-lg hover:bg-teal-400 transition-colors"
                         >
@@ -59,7 +59,11 @@ export default function CartPage() {
                         <p className="text-gray-400 mt-1">{itemCount} item{itemCount !== 1 ? 's' : ''} in your cart</p>
                     </div>
                     <button
-                        onClick={() => clearCart()}
+                        onClick={() => {
+                            if (window.confirm('Are you sure you want to clear your entire cart? This action cannot be undone.')) {
+                                clearCart()
+                            }
+                        }}
                         className="text-sm text-gray-400 hover:text-red-400 transition-colors flex items-center gap-2"
                     >
                         <Trash2 className="w-4 h-4" />
@@ -79,7 +83,7 @@ export default function CartPage() {
                                 className="bg-dark-800 rounded-xl border border-gray-800 p-4 flex gap-4"
                             >
                                 {/* Product Image */}
-                                <Link 
+                                <Link
                                     href={`/products/${encodeURIComponent(item.product.sku)}`}
                                     className="flex-shrink-0"
                                 >
@@ -108,7 +112,7 @@ export default function CartPage() {
                                     </Link>
                                     <p className="text-sm text-gray-500 mt-1">SKU: {item.product.sku}</p>
                                     <p className="text-sm text-teal-400 mt-1">{item.product.brand}</p>
-                                    
+
                                     {/* Mobile Price */}
                                     <p className="text-lg font-bold text-teal-400 mt-2 md:hidden">
                                         {formatPrice(item.product.price * item.quantity)}
@@ -120,6 +124,7 @@ export default function CartPage() {
                                             <button
                                                 onClick={() => updateQuantity(item.product.sku, item.quantity - 1)}
                                                 className="w-8 h-8 rounded flex items-center justify-center text-gray-400 hover:text-white hover:bg-dark-600 transition-colors"
+                                                aria-label="Decrease quantity"
                                             >
                                                 <Minus className="w-4 h-4" />
                                             </button>
@@ -128,12 +133,18 @@ export default function CartPage() {
                                             </span>
                                             <button
                                                 onClick={() => updateQuantity(item.product.sku, item.quantity + 1)}
-                                                className="w-8 h-8 rounded flex items-center justify-center text-gray-400 hover:text-white hover:bg-dark-600 transition-colors"
+                                                disabled={item.quantity >= getItemMaxStock(item.product.sku)}
+                                                className="w-8 h-8 rounded flex items-center justify-center text-gray-400 hover:text-white hover:bg-dark-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                                aria-label="Increase quantity"
+                                                title={item.quantity >= getItemMaxStock(item.product.sku) ? 'Maximum stock reached' : 'Increase quantity'}
                                             >
                                                 <Plus className="w-4 h-4" />
                                             </button>
                                         </div>
-                                        
+                                        {item.quantity >= getItemMaxStock(item.product.sku) && getItemMaxStock(item.product.sku) < 999 && (
+                                            <span className="text-xs text-yellow-500">Max stock</span>
+                                        )}
+
                                         <button
                                             onClick={() => removeItem(item.product.sku)}
                                             className="text-sm text-gray-500 hover:text-red-400 transition-colors flex items-center gap-1"
@@ -172,7 +183,7 @@ export default function CartPage() {
                     <div className="lg:col-span-1">
                         <div className="bg-dark-800 rounded-xl border border-gray-800 p-6 sticky top-24">
                             <h2 className="text-xl font-bold text-white mb-6">Order Summary</h2>
-                            
+
                             <div className="space-y-4 mb-6">
                                 <div className="flex justify-between text-gray-400">
                                     <span>Subtotal ({itemCount} items)</span>

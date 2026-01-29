@@ -4,6 +4,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useState } from 'react'
 import { CartProvider } from '@/lib/cart-context'
 import { AuthProvider } from '@/lib/auth-context'
+import { WishlistProvider } from '@/lib/wishlist-context'
+import { QuoteProvider } from '@/lib/quote-context'
+import { QuoteRequestModal } from '@/components/quote/QuoteRequestModal'
 
 export function Providers({ children }: { children: React.ReactNode }) {
     const [queryClient] = useState(
@@ -22,7 +25,12 @@ export function Providers({ children }: { children: React.ReactNode }) {
         <QueryClientProvider client={queryClient}>
             <AuthProvider>
                 <CartProvider>
-                    {children}
+                    <WishlistProvider>
+                        <QuoteProvider>
+                            {children}
+                            <QuoteRequestModal />
+                        </QuoteProvider>
+                    </WishlistProvider>
                 </CartProvider>
             </AuthProvider>
         </QueryClientProvider>

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+/* Fonts loaded via Next.js font system in layout.tsx - no CSS import needed */
 
 @tailwind base;
 @tailwind components;
@@ -196,12 +196,14 @@
 @layer utilities {
 
     /* Hide scrollbar but keep functionality */
-    .no-scrollbar {
+    .no-scrollbar,
+    .scrollbar-hide {
         -ms-overflow-style: none;
         scrollbar-width: none;
     }
 
-    .no-scrollbar::-webkit-scrollbar {
+    .no-scrollbar::-webkit-scrollbar,
+    .scrollbar-hide::-webkit-scrollbar {
         display: none;
     }
 
@@ -238,4 +240,33 @@
     50% {
         background-position: 100% center;
     }
+}
+
+/* Animation utilities for performance (replace framer-motion) */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideInLeft {
+    from {
+        transform: translateX(-100%);
+    }
+
+    to {
+        transform: translateX(0);
+    }
+}
+
+.animate-fadeIn {
+    animation: fadeIn 0.3s ease-out forwards;
+}
+
+.animate-slideInLeft {
+    animation: slideInLeft 0.3s ease-out forwards;
 }

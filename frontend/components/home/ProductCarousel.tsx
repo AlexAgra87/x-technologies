@@ -1,8 +1,7 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import Link from 'next/link'
-import { motion } from 'framer-motion'
 import {
     ChevronLeft,
     ChevronRight,
@@ -16,6 +15,7 @@ import {
 import { Product } from '@/lib/types'
 import { formatPrice, calculateDiscount, getStockStatus } from '@/lib/utils'
 import { useCart } from '@/lib/cart-context'
+import { useWishlist } from '@/lib/wishlist-context'
 import { ProductImage } from '@/components/ui/ProductImage'
 
 interface ProductCarouselProps {
@@ -30,6 +30,15 @@ interface ProductCarouselProps {
 function WootwareProductCard({ product }: { product: Product }) {
     const [addedToCart, setAddedToCart] = useState(false)
     const { addItem, isInCart } = useCart()
+    const { isInWishlist, toggleItem } = useWishlist()
+
+    const isWishlisted = isInWishlist(product.sku)
+
+    const handleToggleWishlist = (e: React.MouseEvent) => {
+        e.preventDefault()
+        e.stopPropagation()
+        toggleItem(product)
+    }
 
     const discount = product.originalPrice && product.originalPrice > product.price
         ? calculateDiscount(product.originalPrice, product.price)
@@ -64,9 +73,9 @@ function WootwareProductCard({ product }: { product: Product }) {
     }
 
     return (
-        <div className="group bg-dark-800 rounded-xl border border-gray-800 hover:border-teal-500/30 transition-all duration-300 overflow-hidden flex flex-col h-full">
+        <article className="group bg-dark-800 rounded-xl border border-gray-800 hover:border-teal-500/30 transition-all duration-300 overflow-hidden flex flex-col h-full" aria-label={`Product: ${product.name}`}>
             {/* Image */}
-            <Link href={`/products/${encodeURIComponent(product.sku)}`} className="block">
+            <Link href={`/products/${encodeURIComponent(product.sku)}`} className="block" aria-label={`View ${product.name}`}>
                 <div className="relative aspect-square bg-white overflow-hidden">
                     <ProductImage
                         src={product.images?.[0]}
@@ -77,17 +86,19 @@ function WootwareProductCard({ product }: { product: Product }) {
 
                     {/* Discount Badge */}
                     {discount > 0 && (
-                        <div className="absolute top-2 left-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">
+                        <div className="absolute top-2 left-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded" aria-label={`${discount}% discount`}>
                             -{discount}%
                         </div>
                     )}
 
                     {/* Wishlist */}
                     <button
-                        onClick={(e) => e.preventDefault()}
-                        className="absolute top-2 right-2 w-8 h-8 rounded-full bg-white/90 shadow flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-teal-50"
+                        onClick={handleToggleWishlist}
+                        className={`absolute top-2 right-2 w-8 h-8 rounded-full shadow flex items-center justify-center transition-all hover:scale-110 focus:opacity-100 ${isWishlisted ? 'bg-red-500 opacity-100' : 'bg-white/90 opacity-0 group-hover:opacity-100 hover:bg-teal-50'}`}
+                        aria-label={isWishlisted ? `Remove ${product.name} from wishlist` : `Add ${product.name} to wishlist`}
+                        aria-pressed={isWishlisted}
                     >
-                        <Heart className="w-4 h-4 text-gray-600 hover:text-red-500" />
+                        <Heart className={`w-4 h-4 ${isWishlisted ? 'text-white fill-white' : 'text-gray-600 hover:text-red-500'}`} aria-hidden="true" />
                     </button>
                 </div>
             </Link>
@@ -102,28 +113,28 @@ function WootwareProductCard({ product }: { product: Product }) {
                 </Link>
 
                 {/* Stock Status */}
-                <p className={`text-xs ${getStockColor()} flex items-center gap-1 mb-3`}>
-                    {stockInfo.status === 'in-stock' && <Check className="w-3 h-3" />}
-                    {stockInfo.status === 'low-stock' && <Clock className="w-3 h-3" />}
-                    {stockInfo.status === 'out-of-stock' && <X className="w-3 h-3" />}
+                <p className={`text-xs ${getStockColor()} flex items-center gap-1 mb-3`} aria-live="polite">
+                    {stockInfo.status === 'in-stock' && <Check className="w-3 h-3" aria-hidden="true" />}
+                    {stockInfo.status === 'low-stock' && <Clock className="w-3 h-3" aria-hidden="true" />}
+                    {stockInfo.status === 'out-of-stock' && <X className="w-3 h-3" aria-hidden="true" />}
                     {getStockText()}
                 </p>
 
                 {/* Spacer to push price to bottom */}
-                <div className="flex-1" />
+                <div className="flex-1" aria-hidden="true" />
 
                 {/* Pricing */}
                 <div className="space-y-1 mb-3">
                     {product.originalPrice && product.originalPrice > product.price && (
-                        <p className="text-sm text-gray-500 line-through">
+                        <p className="text-sm text-gray-500 line-through" aria-label={`Original price: ${formatPrice(product.originalPrice)}`}>
                             {formatPrice(product.originalPrice)}
                         </p>
                     )}
-                    <p className="text-xl font-bold text-teal-400">
+                    <p className="text-xl font-bold text-teal-400" aria-label={`Current price: ${formatPrice(product.price)}`}>
                         {formatPrice(product.price)}
                     </p>
                     {savings > 0 && (
-                        <p className="text-xs text-green-400 font-medium">
+                        <p className="text-xs text-green-400 font-medium" aria-label={`You save ${formatPrice(savings)}`}>
                             Save: {formatPrice(savings)}!
                         </p>
                     )}
@@ -133,6 +144,7 @@ function WootwareProductCard({ product }: { product: Product }) {
                 <button
                     onClick={handleAddToCart}
                     disabled={stockInfo.status === 'out-of-stock'}
+                    aria-label={stockInfo.status === 'out-of-stock' ? `${product.name} is out of stock` : addedToCart ? `${product.name} added to cart` : inCart ? `${product.name} is in cart` : `Add ${product.name} to cart`}
                     className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg font-medium text-sm transition-all ${stockInfo.status === 'out-of-stock'
                         ? "bg-gray-700 text-gray-500 cursor-not-allowed"
                         : addedToCart || inCart
@@ -142,34 +154,34 @@ function WootwareProductCard({ product }: { product: Product }) {
                 >
                     {addedToCart ? (
                         <>
-                            <Check className="w-4 h-4" />
+                            <Check className="w-4 h-4" aria-hidden="true" />
                             Added!
                         </>
                     ) : inCart ? (
                         <>
-                            <Check className="w-4 h-4" />
+                            <Check className="w-4 h-4" aria-hidden="true" />
                             In Cart
                         </>
                     ) : stockInfo.status === 'out-of-stock' ? (
                         <>
-                            <X className="w-4 h-4" />
+                            <X className="w-4 h-4" aria-hidden="true" />
                             Out of Stock
                         </>
                     ) : (
                         <>
-                            <ShoppingCart className="w-4 h-4" />
+                            <ShoppingCart className="w-4 h-4" aria-hidden="true" />
                             Add to Cart
                         </>
                     )}
                 </button>
             </div>
-        </div>
+        </article>
     )
 }
 
 function ProductSkeleton() {
     return (
-        <div className="bg-dark-800 rounded-xl border border-gray-800 overflow-hidden animate-pulse">
+        <div className="bg-dark-800 rounded-xl border border-gray-800 overflow-hidden animate-pulse" aria-hidden="true" role="presentation">
             <div className="aspect-square bg-dark-700" />
             <div className="p-4 space-y-3">
                 <div className="h-4 bg-dark-700 rounded w-full" />
@@ -220,11 +232,11 @@ export function ProductCarousel({
     }
 
     return (
-        <section className="py-8">
+        <section className="py-8" aria-labelledby={`carousel-${title.toLowerCase().replace(/\s+/g, '-')}`}>
             {/* Header */}
             <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-4">
-                    <h2 className={`text-2xl font-bold bg-gradient-to-r ${accentColors[accentColor]} bg-clip-text text-transparent`}>
+                    <h2 id={`carousel-${title.toLowerCase().replace(/\s+/g, '-')}`} className={`text-2xl font-bold bg-gradient-to-r ${accentColors[accentColor]} bg-clip-text text-transparent`}>
                         {title}
                     </h2>
                     {subtitle && (
@@ -234,21 +246,23 @@ export function ProductCarousel({
                     )}
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2" role="group" aria-label={`${title} carousel controls`}>
                     {/* Scroll buttons */}
                     <button
                         onClick={() => scroll('left')}
                         disabled={!canScrollLeft}
+                        aria-label={`Scroll ${title} left`}
                         className="w-9 h-9 rounded-lg bg-dark-800 border border-gray-700 flex items-center justify-center text-gray-400 hover:text-white hover:border-teal-500/50 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
                     >
-                        <ChevronLeft className="w-5 h-5" />
+                        <ChevronLeft className="w-5 h-5" aria-hidden="true" />
                     </button>
                     <button
                         onClick={() => scroll('right')}
                         disabled={!canScrollRight}
+                        aria-label={`Scroll ${title} right`}
                         className="w-9 h-9 rounded-lg bg-dark-800 border border-gray-700 flex items-center justify-center text-gray-400 hover:text-white hover:border-teal-500/50 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
                     >
-                        <ChevronRight className="w-5 h-5" />
+                        <ChevronRight className="w-5 h-5" aria-hidden="true" />
                     </button>
 
                     {viewAllLink && (

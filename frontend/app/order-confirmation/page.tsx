@@ -16,7 +16,8 @@ import {
     Clock,
     CreditCard,
     AlertCircle,
-    FileText
+    FileText,
+    Search
 } from 'lucide-react'
 import { formatPrice } from '@/lib/utils'
 import { siteSettings, getWhatsAppLink, getEmailLink } from '@/lib/site-settings'
@@ -382,6 +383,15 @@ export default function OrderConfirmationPage() {
                                 <FileText className="w-5 h-5" />
                                 Download Invoice PDF
                             </button>
+
+                            {/* Track Order Link */}
+                            <Link
+                                href="/track-order"
+                                className="w-full flex items-center justify-center gap-2 py-3 bg-dark-700 text-white font-semibold rounded-lg hover:bg-dark-600 transition-colors border border-gray-700"
+                            >
+                                <Search className="w-5 h-5" />
+                                Track Your Order
+                            </Link>
                         </motion.div>
                     </div>
                 </div>

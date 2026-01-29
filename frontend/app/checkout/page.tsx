@@ -54,6 +54,7 @@ export default function CheckoutPage() {
     const { items, itemCount, subtotal, clearCart } = useCart()
     const { user, isAuthenticated, createOrder } = useAuth()
     const [isSubmitting, setIsSubmitting] = useState(false)
+    const [submitError, setSubmitError] = useState<string | null>(null)
     const [errors, setErrors] = useState<Partial<ShippingDetails>>({})
 
     const [formData, setFormData] = useState<ShippingDetails>({
@@ -124,6 +125,7 @@ export default function CheckoutPage() {
         if (!validateForm()) return
 
         setIsSubmitting(true)
+        setSubmitError(null)
 
         try {
             // Convert cart items to order items
@@ -170,11 +172,55 @@ export default function CheckoutPage() {
 
             sessionStorage.setItem('xtech-order', JSON.stringify(orderData))
 
+            // Send order confirmation email
+            try {
+                const emailOrderData = {
+                    orderId: order.orderRef,
+                    items: orderItems.map(item => ({
+                        name: item.name,
+                        sku: item.sku,
+                        quantity: item.quantity,
+                        price: item.price,
+                    })),
+                    subtotal,
+                    shipping: shippingCost,
+                    vat: subtotal * 0.15,
+                    total,
+                    customer: {
+                        name: `${formData.firstName} ${formData.lastName}`,
+                        email: formData.email,
+                        phone: formData.phone,
+                    },
+                    shippingAddress: {
+                        street: formData.apartment
+                            ? `${formData.address}, ${formData.apartment}`
+                            : formData.address,
+                        city: formData.city,
+                        province: formData.province,
+                        postalCode: formData.postalCode,
+                    },
+                    paymentMethod: 'eft' as const,
+                }
+
+                await fetch('/api/orders/email', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        order: emailOrderData,
+                        type: 'confirmation',
+                    }),
+                })
+            } catch (emailError) {
+                // Don't block order completion if email fails
+                console.error('Failed to send order confirmation email:', emailError)
+            }
+
             // Clear cart and redirect to confirmation
             clearCart()
             router.push('/order-confirmation')
         } catch (error) {
             console.error('Error creating order:', error)
+            setSubmitError('Failed to create order. Please try again or contact support if the problem persists.')
             setIsSubmitting(false)
         }
     }
@@ -475,6 +521,16 @@ export default function CheckoutPage() {
                                         <p className="text-xs text-gray-500 mt-1">VAT included</p>
                                     </div>
                                 </div>
+
+                                {/* Error Message */}
+                                {submitError && (
+                                    <div className="mt-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
+                                        <p className="text-sm text-red-400 flex items-center gap-2">
+                                            <span className="text-red-500">⚠</span>
+                                            {submitError}
+                                        </p>
+                                    </div>
+                                )}
 
                                 <button
                                     type="submit"

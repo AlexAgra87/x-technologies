@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
+import DOMPurify from 'dompurify'
 import {
     ShoppingCartIcon,
     HeartIcon,
@@ -24,37 +25,9 @@ import { HeartIcon as HeartSolidIcon } from '@heroicons/react/24/solid'
 import { useProduct, useProducts } from '@/lib/api'
 import { formatPrice, getStockStatus, cn } from '@/lib/utils'
 import { useCart } from '@/lib/cart-context'
+import { useWishlist } from '@/lib/wishlist-context'
 import { ProductImage } from '@/components/ui/ProductImage'
 import { Product } from '@/lib/types'
-
-const WISHLIST_KEY = 'xtech-wishlist'
-
-// Wishlist helper functions
-const getWishlist = (): Product[] => {
-    if (typeof window === 'undefined') return []
-    try {
-        const stored = localStorage.getItem(WISHLIST_KEY)
-        return stored ? JSON.parse(stored) : []
-    } catch {
-        return []
-    }
-}
-
-const isInWishlist = (sku: string): boolean => {
-    return getWishlist().some(item => item.sku === sku)
-}
-
-const addToWishlist = (product: Product): void => {
-    const current = getWishlist()
-    if (!current.some(item => item.sku === product.sku)) {
-        localStorage.setItem(WISHLIST_KEY, JSON.stringify([...current, product]))
-    }
-}
-
-const removeFromWishlist = (sku: string): void => {
-    const current = getWishlist()
-    localStorage.setItem(WISHLIST_KEY, JSON.stringify(current.filter(item => item.sku !== sku)))
-}
 
 // Simple clean Product Description - just paragraphs, no lists/specs
 function ProductDescription({ description }: { description?: string }) {
@@ -73,8 +46,14 @@ function ProductDescription({ description }: { description?: string }) {
             return [html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()]
         }
 
+        // Sanitize HTML to prevent XSS attacks
+        const cleanHtml = DOMPurify.sanitize(html, {
+            ALLOWED_TAGS: ['p', 'h1', 'h2', 'h3', 'h4', 'em', 'strong', 'b', 'i', 'br'],
+            ALLOWED_ATTR: []
+        })
+
         const tempDiv = document.createElement('div')
-        tempDiv.innerHTML = html
+        tempDiv.innerHTML = cleanHtml
 
         const paragraphs: string[] = []
 
@@ -142,35 +121,24 @@ export default function ProductPage() {
     const { data: product, isLoading, error } = useProduct(sku)
     const [selectedImage, setSelectedImage] = useState(0)
     const [quantity, setQuantity] = useState(1)
-    const [isWishlisted, setIsWishlisted] = useState(false)
     const [activeTab, setActiveTab] = useState<'description' | 'specs'>('description')
     const [addedToCart, setAddedToCart] = useState(false)
     const { addItem, isInCart } = useCart()
+    const { isInWishlist, toggleItem } = useWishlist()
 
-    // Check wishlist status on mount
-    useEffect(() => {
-        if (sku) {
-            setIsWishlisted(isInWishlist(sku))
-        }
-    }, [sku])
+    const isWishlisted = product ? isInWishlist(product.sku) : false
 
     const handleToggleWishlist = () => {
         if (!product) return
-        if (isWishlisted) {
-            removeFromWishlist(product.sku)
-            setIsWishlisted(false)
-        } else {
-            addToWishlist(product)
-            setIsWishlisted(true)
-        }
+        toggleItem(product)
     }
 
     // Fetch related products
     const { data: relatedData } = useProducts({
         category: product?.categories?.[0],
-        limit: 4
+        limit: 5  // Request 5 since we'll filter out current product
     })
-    const relatedProducts = (relatedData as any)?.data?.filter((p: any) => p.sku !== sku)?.slice(0, 4) || []
+    const relatedProducts = (relatedData as any)?.products?.filter((p: any) => p.sku !== sku)?.slice(0, 4) || []
 
     const handleAddToCart = () => {
         if (product) {
@@ -417,7 +385,28 @@ export default function ProductPage() {
                                 )}
                             </button>
 
-                            <button className="p-3 border border-gray-700 rounded-lg hover:bg-dark-700 transition-colors">
+                            <button
+                                onClick={async () => {
+                                    const shareData = {
+                                        title: product.name,
+                                        text: `Check out ${product.name} at X-Tech!`,
+                                        url: window.location.href
+                                    }
+                                    if (navigator.share) {
+                                        try {
+                                            await navigator.share(shareData)
+                                        } catch (err) {
+                                            // User cancelled or error
+                                        }
+                                    } else {
+                                        // Fallback: copy link to clipboard
+                                        navigator.clipboard.writeText(window.location.href)
+                                        alert('Link copied to clipboard!')
+                                    }
+                                }}
+                                className="p-3 border border-gray-700 rounded-lg hover:bg-dark-700 transition-colors"
+                                aria-label="Share this product"
+                            >
                                 <ShareIcon className="h-6 w-6 text-white" />
                             </button>
                         </div>

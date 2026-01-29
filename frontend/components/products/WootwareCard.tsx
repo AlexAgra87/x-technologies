@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useCallback, memo } from 'react'
 import Link from 'next/link'
 import {
     ShoppingCart,
@@ -14,67 +14,30 @@ import {
 import { Product } from '@/lib/types'
 import { formatPrice, calculateDiscount, getStockStatus, cn } from '@/lib/utils'
 import { useCart } from '@/lib/cart-context'
+import { useWishlist } from '@/lib/wishlist-context'
 import { ProductImage } from '@/components/ui/ProductImage'
-
-const WISHLIST_KEY = 'xtech-wishlist'
-
-// Helper functions for wishlist persistence
-const getWishlist = (): Product[] => {
-    if (typeof window === 'undefined') return []
-    try {
-        const stored = localStorage.getItem(WISHLIST_KEY)
-        return stored ? JSON.parse(stored) : []
-    } catch {
-        return []
-    }
-}
-
-const isInWishlist = (sku: string): boolean => {
-    return getWishlist().some(item => item.sku === sku)
-}
-
-const addToWishlist = (product: Product): void => {
-    const current = getWishlist()
-    if (!current.some(item => item.sku === product.sku)) {
-        localStorage.setItem(WISHLIST_KEY, JSON.stringify([...current, product]))
-    }
-}
-
-const removeFromWishlist = (sku: string): void => {
-    const current = getWishlist()
-    localStorage.setItem(WISHLIST_KEY, JSON.stringify(current.filter(item => item.sku !== sku)))
-}
 
 interface WootwareCardProps {
     product: Product
     variant?: 'grid' | 'list'
 }
 
-export function WootwareCard({ product, variant = 'grid' }: WootwareCardProps) {
-    const [isWishlisted, setIsWishlisted] = useState(false)
+function WootwareCardComponent({ product, variant = 'grid' }: WootwareCardProps) {
     const [addedToCart, setAddedToCart] = useState(false)
     const { addItem, isInCart } = useCart()
+    const { isInWishlist, toggleItem } = useWishlist()
 
-    // Check wishlist status on mount
-    useEffect(() => {
-        setIsWishlisted(isInWishlist(product.sku))
-    }, [product.sku])
+    const isWishlisted = isInWishlist(product.sku)
 
-    const handleToggleWishlist = () => {
-        if (isWishlisted) {
-            removeFromWishlist(product.sku)
-            setIsWishlisted(false)
-        } else {
-            addToWishlist(product)
-            setIsWishlisted(true)
-        }
-    }
+    const handleToggleWishlist = useCallback(() => {
+        toggleItem(product)
+    }, [toggleItem, product])
 
-    const handleAddToCart = () => {
+    const handleAddToCart = useCallback(() => {
         addItem(product)
         setAddedToCart(true)
         setTimeout(() => setAddedToCart(false), 2000)
-    }
+    }, [addItem, product])
 
     const inCart = isInCart(product.sku)
 
@@ -362,3 +325,12 @@ export function WootwareCard({ product, variant = 'grid' }: WootwareCardProps) {
         </div>
     )
 }
+
+// Memoize the component to prevent unnecessary re-renders
+export const WootwareCard = memo(WootwareCardComponent, (prevProps, nextProps) => {
+    // Custom comparison: only re-render if product SKU or variant changes
+    return prevProps.product.sku === nextProps.product.sku &&
+        prevProps.variant === nextProps.variant &&
+        prevProps.product.price === nextProps.product.price &&
+        prevProps.product.stock?.quantity === nextProps.product.stock?.quantity
+})

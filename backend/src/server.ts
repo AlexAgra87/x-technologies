@@ -2,12 +2,43 @@ import 'dotenv/config'
 import express from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
+import rateLimit from 'express-rate-limit'
 import { productsRouter } from './handlers/products.handler'
 import { healthRouter } from './handlers/health.handler'
 import { startScheduler } from './services/scheduler.service'
 
 const app = express()
 const PORT = process.env.PORT || 4000
+
+// Rate limiting configuration
+const generalLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 1000, // 1000 requests per 15 minutes per IP
+    message: {
+        success: false,
+        error: {
+            code: 'RATE_LIMITED',
+            message: 'Too many requests, please try again later.',
+        },
+    },
+    standardHeaders: true,
+    legacyHeaders: false,
+})
+
+// Stricter rate limit for search (more expensive operation)
+const searchLimiter = rateLimit({
+    windowMs: 1 * 60 * 1000, // 1 minute
+    max: 60, // 60 searches per minute per IP
+    message: {
+        success: false,
+        error: {
+            code: 'RATE_LIMITED',
+            message: 'Too many search requests, please slow down.',
+        },
+    },
+    standardHeaders: true,
+    legacyHeaders: false,
+})
 
 // Middleware
 app.use(helmet())
@@ -16,6 +47,9 @@ app.use(cors({
     credentials: true,
 }))
 app.use(express.json())
+
+// Apply general rate limiting to all API routes
+app.use('/api/', generalLimiter)
 
 // Request logging
 app.use((req, res, next) => {
@@ -29,6 +63,8 @@ app.use((req, res, next) => {
 
 // Routes
 app.use('/api/health', healthRouter)
+// Apply stricter rate limit to search endpoint
+app.use('/api/products/search', searchLimiter)
 app.use('/api/products', productsRouter)
 
 // Error handling

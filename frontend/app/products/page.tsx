@@ -1,9 +1,8 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useEffect, Suspense, useMemo, useCallback } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { motion } from 'framer-motion'
 import {
     Grid3X3,
     List,
@@ -119,39 +118,40 @@ function ProductsContent() {
         }
     }, [filters, router, searchParams])
 
-    const handleFilterChange = (key: string, value: any) => {
-        setFilters({ ...filters, [key]: value, page: 1 })
-    }
+    const handleFilterChange = useCallback((key: string, value: any) => {
+        setFilters(prev => ({ ...prev, [key]: value, page: 1 }))
+    }, [])
 
-    const clearFilters = () => {
+    const clearFilters = useCallback(() => {
         setFilters({ page: 1, limit: 24 })
-    }
+    }, [])
 
-    const handlePageChange = (page: number) => {
-        setFilters({ ...filters, page })
+    const handlePageChange = useCallback((page: number) => {
+        setFilters(prev => ({ ...prev, page }))
         window.scrollTo({ top: 0, behavior: 'smooth' })
-    }
+    }, [])
 
-    const sortOptions = [
+    // Memoize sort options (static data)
+    const sortOptions = useMemo(() => [
         { value: '', label: 'Default' },
         { value: 'price_asc', label: 'Price: Low to High' },
         { value: 'price_desc', label: 'Price: High to Low' },
         { value: 'name_asc', label: 'Name: A-Z' },
         { value: 'name_desc', label: 'Name: Z-A' },
         { value: 'newest', label: 'Newest First' },
-    ]
+    ], [])
 
     // Standard filter keys that aren't displayed as active filter chips
-    const standardKeys = ['page', 'limit', 'sortBy']
+    const standardKeys = useMemo(() => ['page', 'limit', 'sortBy'], [])
 
-    // Get active dynamic attribute filters
-    const dynamicAttributeFilters = Object.entries(filters)
+    // Get active dynamic attribute filters (memoized)
+    const dynamicAttributeFilters = useMemo(() => Object.entries(filters)
         .filter(([key, value]) => {
             const nonDynamicKeys = ['search', 'category', 'brand', 'minPrice', 'maxPrice', 'inStock', 'supplier', ...standardKeys]
             return !nonDynamicKeys.includes(key) && value !== undefined && value !== ''
-        })
+        }), [filters, standardKeys])
 
-    const hasActiveFilters = !!(
+    const hasActiveFilters = useMemo(() => !!(
         filters.search ||
         filters.category ||
         filters.brand ||
@@ -160,7 +160,7 @@ function ProductsContent() {
         filters.inStock ||
         filters.supplier ||
         dynamicAttributeFilters.length > 0
-    )
+    ), [filters, dynamicAttributeFilters])
 
     // Filter sidebar component
     const FilterSidebar = ({ isMobile = false }: { isMobile?: boolean }) => (
@@ -524,10 +524,9 @@ function ProductsContent() {
                                 </button>
                             </div>
                         ) : (
-                            <motion.div
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
+                            <div
                                 className={cn(
+                                    "animate-fadeIn",
                                     viewMode === 'grid'
                                         ? "grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4"
                                         : "space-y-4"
@@ -540,7 +539,7 @@ function ProductsContent() {
                                         variant={viewMode}
                                     />
                                 ))}
-                            </motion.div>
+                            </div>
                         )}
 
                         {/* Pagination */}
@@ -610,11 +609,8 @@ function ProductsContent() {
                         className="fixed inset-0 bg-black/50 z-40 lg:hidden"
                         onClick={() => setMobileFiltersOpen(false)}
                     />
-                    <motion.div
-                        initial={{ x: '-100%' }}
-                        animate={{ x: 0 }}
-                        exit={{ x: '-100%' }}
-                        className="fixed left-0 top-0 bottom-0 w-80 max-w-full bg-dark-900 z-50 overflow-y-auto lg:hidden"
+                    <div
+                        className="fixed left-0 top-0 bottom-0 w-80 max-w-full bg-dark-900 z-50 overflow-y-auto lg:hidden animate-slideInLeft"
                     >
                         <div className="p-4">
                             <div className="flex items-center justify-between mb-6">
@@ -631,7 +627,7 @@ function ProductsContent() {
                             </div>
                             <FilterSidebar isMobile />
                         </div>
-                    </motion.div>
+                    </div>
                 </>
             )}
         </div>

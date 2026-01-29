@@ -8,11 +8,15 @@ import { pageMetadata } from '@/lib/metadata'
 const inter = Inter({
     subsets: ['latin'],
     variable: '--font-inter',
+    display: 'swap',
+    preload: true,
 })
 
 const outfit = Outfit({
     subsets: ['latin'],
     variable: '--font-outfit',
+    display: 'swap',
+    preload: false,
 })
 
 export const metadata: Metadata = {
@@ -41,6 +45,12 @@ export default function RootLayout({
 }>) {
     return (
         <html lang="en" className={`${inter.variable} ${outfit.variable}`}>
+            <head>
+                <link rel="preconnect" href="https://images.unsplash.com" />
+                <link rel="preconnect" href="https://www.syntech.co.za" />
+                <link rel="dns-prefetch" href="https://images.unsplash.com" />
+                <link rel="dns-prefetch" href="https://www.syntech.co.za" />
+            </head>
             <body className="min-h-screen flex flex-col">
                 <Providers>
                     <LayoutWrapper>

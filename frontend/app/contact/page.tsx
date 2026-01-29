@@ -41,14 +41,31 @@ export default function ContactPage() {
     })
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [submitted, setSubmitted] = useState(false)
+    const [error, setError] = useState<string | null>(null)
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         setIsSubmitting(true)
-        // Simulate form submission
-        await new Promise(resolve => setTimeout(resolve, 1000))
-        setSubmitted(true)
-        setIsSubmitting(false)
+        setError(null)
+
+        try {
+            const response = await fetch('/api/contact', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(formData),
+            })
+
+            if (!response.ok) {
+                const data = await response.json()
+                throw new Error(data.error || 'Failed to send message')
+            }
+
+            setSubmitted(true)
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to send message. Please try again.')
+        } finally {
+            setIsSubmitting(false)
+        }
     }
 
     return (
@@ -181,6 +198,13 @@ export default function ContactPage() {
                                             placeholder="Tell us more about your inquiry..."
                                         />
                                     </div>
+
+                                    {error && (
+                                        <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400">
+                                            {error}
+                                        </div>
+                                    )}
+
                                     <button
                                         type="submit"
                                         disabled={isSubmitting}

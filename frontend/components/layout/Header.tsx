@@ -35,9 +35,11 @@ import {
     Zap,
     LucideIcon
 } from 'lucide-react'
-import { Loader2, TrendingUp } from 'lucide-react'
+import { Loader2, TrendingUp, FileText } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useCart } from '@/lib/cart-context'
+import { useWishlist } from '@/lib/wishlist-context'
+import { useQuote } from '@/lib/quote-context'
 import { Product } from '@/lib/types'
 import { ProductImage } from '@/components/ui/ProductImage'
 import { formatPrice } from '@/lib/utils'
@@ -114,6 +116,8 @@ export function Header() {
     const [showMegaMenu, setShowMegaMenu] = useState(false)
     const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>({})
     const { itemCount } = useCart()
+    const { itemCount: wishlistCount } = useWishlist()
+    const { setShowModal: setShowQuoteModal } = useQuote()
 
     // Search suggestions state
     const [searchResults, setSearchResults] = useState<Product[]>([])
@@ -266,24 +270,28 @@ export function Header() {
 
                         {/* Search Bar - Desktop */}
                         <div ref={searchRef} className="hidden md:flex flex-1 max-w-xl mx-8 relative">
-                            <form onSubmit={handleSearch} className="w-full">
+                            <form onSubmit={handleSearch} className="w-full" role="search" aria-label="Search products">
                                 <div className="relative w-full">
+                                    <label htmlFor="desktop-search" className="sr-only">Search for products</label>
                                     <input
-                                        type="text"
+                                        id="desktop-search"
+                                        type="search"
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
                                         onFocus={() => searchResults.length > 0 && setShowSearchDropdown(true)}
                                         placeholder="Search for products..."
+                                        autoComplete="off"
                                         className="w-full pl-4 pr-12 py-2.5 bg-dark-700 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:border-teal-500 focus:outline-none transition-colors"
                                     />
                                     <button
                                         type="submit"
+                                        aria-label="Submit search"
                                         className="absolute right-1 top-1 bottom-1 px-3 bg-teal-500 text-black rounded-md hover:bg-teal-400 transition-colors"
                                     >
                                         {isSearching ? (
-                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                            <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
                                         ) : (
-                                            <Search className="w-4 h-4" />
+                                            <Search className="w-4 h-4" aria-hidden="true" />
                                         )}
                                     </button>
                                 </div>
@@ -338,24 +346,39 @@ export function Header() {
 
                         {/* Right Actions */}
                         <div className="flex items-center gap-1">
+                            {/* Request Quote */}
+                            <button
+                                onClick={() => setShowQuoteModal(true)}
+                                className="hidden sm:flex items-center gap-2 px-3 py-2 text-gray-400 hover:text-teal-400 hover:bg-teal-500/10 rounded-lg transition-colors"
+                                aria-label="Request a quote"
+                            >
+                                <FileText className="w-5 h-5" aria-hidden="true" />
+                                <span className="text-sm hidden lg:inline">Request Quote</span>
+                            </button>
+
                             {/* Wishlist */}
-                            <Link href="/wishlist" className="hidden sm:flex items-center gap-2 px-3 py-2 text-gray-400 hover:text-white transition-colors">
-                                <Heart className="w-5 h-5" />
+                            <Link href="/account?tab=wishlist" className="hidden sm:flex items-center gap-2 px-3 py-2 text-gray-400 hover:text-teal-400 hover:bg-teal-500/10 rounded-lg transition-colors relative" aria-label={`View wishlist${wishlistCount > 0 ? `, ${wishlistCount} items` : ''}`}>
+                                <Heart className={cn("w-5 h-5", wishlistCount > 0 && "text-red-400 fill-red-400")} aria-hidden="true" />
+                                {wishlistCount > 0 && (
+                                    <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-xs font-medium rounded-full flex items-center justify-center">
+                                        {wishlistCount > 9 ? '9+' : wishlistCount}
+                                    </span>
+                                )}
                                 <span className="text-sm hidden lg:inline">Wishlist</span>
                             </Link>
 
                             {/* Account */}
-                            <Link href="/account" className="flex items-center gap-2 px-3 py-2 text-gray-400 hover:text-white transition-colors">
-                                <User className="w-5 h-5" />
-                                <span className="text-sm hidden lg:inline">Account</span>
+                            <Link href="/account" className="flex items-center gap-2 px-3 py-2 text-gray-400 hover:text-teal-400 hover:bg-teal-500/10 rounded-lg transition-colors" aria-label="My Account">
+                                <User className="w-5 h-5" aria-hidden="true" />
+                                <span className="text-sm hidden lg:inline">My Account</span>
                             </Link>
 
                             {/* Cart */}
-                            <Link href="/cart" className="flex items-center gap-2 px-3 py-2 bg-teal-500/10 border border-teal-500/30 rounded-lg text-teal-400 hover:bg-teal-500/20 transition-colors">
-                                <ShoppingCart className="w-5 h-5" />
+                            <Link href="/cart" className="flex items-center gap-2 px-3 py-2 bg-teal-500/10 border border-teal-500/30 rounded-lg text-teal-400 hover:bg-teal-500/20 transition-colors" aria-label={`Shopping cart${itemCount > 0 ? `, ${itemCount} items` : ''}`}>
+                                <ShoppingCart className="w-5 h-5" aria-hidden="true" />
                                 <span className="text-sm font-medium">Cart</span>
                                 {itemCount > 0 && (
-                                    <span className="w-5 h-5 bg-teal-500 text-black rounded-full text-xs flex items-center justify-center font-bold">
+                                    <span className="w-5 h-5 bg-teal-500 text-black rounded-full text-xs flex items-center justify-center font-bold" aria-hidden="true">
                                         {itemCount > 99 ? '99+' : itemCount}
                                     </span>
                                 )}
@@ -365,8 +388,10 @@ export function Header() {
                             <button
                                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                                 className="lg:hidden ml-2 p-2 text-gray-400 hover:text-white"
+                                aria-label={isMobileMenuOpen ? 'Close menu' : 'Open menu'}
+                                aria-expanded={isMobileMenuOpen}
                             >
-                                {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+                                {isMobileMenuOpen ? <X className="w-6 h-6" aria-hidden="true" /> : <Menu className="w-6 h-6" aria-hidden="true" />}
                             </button>
                         </div>
                     </div>
@@ -374,7 +399,7 @@ export function Header() {
             </div>
 
             {/* Navigation Bar */}
-            <nav className="hidden lg:block bg-dark-900 border-b border-gray-800">
+            <nav className="hidden lg:block bg-dark-900 border-b border-gray-800" aria-label="Main navigation">
                 <div className="container mx-auto px-4">
                     <div className="flex items-center gap-1 h-12">
                         {/* All Products Mega Menu */}
@@ -383,13 +408,17 @@ export function Header() {
                             onMouseEnter={() => setShowMegaMenu(true)}
                             onMouseLeave={() => setShowMegaMenu(false)}
                         >
-                            <button className="flex items-center gap-2 px-4 py-2 bg-teal-500 text-black font-medium rounded-lg hover:bg-teal-400 transition-colors">
-                                <Menu className="w-4 h-4" />
+                            <button
+                                className="flex items-center gap-2 px-4 py-2 bg-teal-500 text-black font-medium rounded-lg hover:bg-teal-400 transition-colors"
+                                aria-expanded={showMegaMenu}
+                                aria-haspopup="true"
+                            >
+                                <Menu className="w-4 h-4" aria-hidden="true" />
                                 All Products
                                 <ChevronDown className={cn(
                                     "w-4 h-4 transition-transform",
                                     showMegaMenu ? "rotate-180" : ""
-                                )} />
+                                )} aria-hidden="true" />
                             </button>
 
                             {/* Mega Menu */}
