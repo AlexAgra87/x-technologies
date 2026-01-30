@@ -42,8 +42,34 @@ const searchLimiter = rateLimit({
 
 // Middleware
 app.use(helmet())
+
+// CORS configuration - allow multiple origins
+const allowedOrigins = [
+    'http://localhost:3000',
+    'http://xtech.oikos.casa',
+    'https://xtech.oikos.casa',
+    'http://x-technologies.co.za',
+    'https://x-technologies.co.za',
+    'http://www.x-technologies.co.za',
+    'https://www.x-technologies.co.za',
+]
+
+if (process.env.CORS_ORIGIN) {
+    allowedOrigins.push(process.env.CORS_ORIGIN)
+}
+
 app.use(cors({
-    origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+    origin: (origin, callback) => {
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) return callback(null, true)
+
+        if (allowedOrigins.includes(origin)) {
+            callback(null, true)
+        } else {
+            console.log(`CORS blocked origin: ${origin}`)
+            callback(null, false)
+        }
+    },
     credentials: true,
 }))
 app.use(express.json())
