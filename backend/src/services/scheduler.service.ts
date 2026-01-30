@@ -142,7 +142,6 @@ export function startScheduler(): void {
     const task = cron.schedule(CRON_EXPRESSION, async () => {
         await refreshAllSuppliers()
     }, {
-        scheduled: true,
         timezone: 'Africa/Johannesburg', // South African timezone
     })
 
