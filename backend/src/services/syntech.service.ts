@@ -10,8 +10,8 @@ const SYNTECH_API_KEY = process.env.SYNTECH_API_KEY || ''
 const MARKUP_RATE = 1.10  // 10% markup
 const VAT_RATE = 1.15     // 15% VAT (South Africa)
 
-// Cache for 15 minutes
-const cache = new NodeCache({ stdTTL: 900 })
+// Cache for 30 minutes (products don't change frequently)
+const cache = new NodeCache({ stdTTL: 1800 })
 const CACHE_KEY = 'syntech_products'
 
 const xmlParser = new XMLParser({

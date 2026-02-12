@@ -2,6 +2,7 @@ import 'dotenv/config'
 import express from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
+import compression from 'compression'
 import rateLimit from 'express-rate-limit'
 import { productsRouter } from './handlers/products.handler'
 import { healthRouter } from './handlers/health.handler'
@@ -41,6 +42,7 @@ const searchLimiter = rateLimit({
 })
 
 // Middleware
+app.use(compression()) // Gzip compression for faster responses
 app.use(helmet())
 
 // CORS configuration - allow multiple origins
@@ -73,6 +75,23 @@ app.use(cors({
     credentials: true,
 }))
 app.use(express.json())
+
+// Cache headers for product data (5 minutes browser cache, 15 minutes stale-while-revalidate)
+app.use('/api/products', (req, res, next) => {
+    // Cache GET requests for products
+    if (req.method === 'GET') {
+        res.set('Cache-Control', 'public, max-age=300, stale-while-revalidate=900')
+    }
+    next()
+})
+
+// Cache headers for categories (10 minutes - changes less often)
+app.use('/api/products/categories', (req, res, next) => {
+    if (req.method === 'GET') {
+        res.set('Cache-Control', 'public, max-age=600, stale-while-revalidate=1800')
+    }
+    next()
+})
 
 // Apply general rate limiting to all API routes
 app.use('/api/', generalLimiter)
