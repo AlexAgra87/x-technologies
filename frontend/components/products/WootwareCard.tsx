@@ -16,6 +16,7 @@ import { formatPrice, calculateDiscount, getStockStatus, cn } from '@/lib/utils'
 import { useCart } from '@/lib/cart-context'
 import { useWishlist } from '@/lib/wishlist-context'
 import { ProductImage } from '@/components/ui/ProductImage'
+import { usePrefetchProduct } from '@/lib/api'
 
 interface WootwareCardProps {
     product: Product
@@ -26,6 +27,7 @@ function WootwareCardComponent({ product, variant = 'grid' }: WootwareCardProps)
     const [addedToCart, setAddedToCart] = useState(false)
     const { addItem, isInCart } = useCart()
     const { isInWishlist, toggleItem } = useWishlist()
+    const prefetchProduct = usePrefetchProduct()
 
     const isWishlisted = isInWishlist(product.sku)
 
@@ -75,7 +77,10 @@ function WootwareCardComponent({ product, variant = 'grid' }: WootwareCardProps)
     // List variant
     if (variant === 'list') {
         return (
-            <div className="group bg-dark-800 rounded-xl border border-gray-800 hover:border-teal-500/30 transition-all duration-300 overflow-hidden">
+            <div
+                className="group bg-dark-800 rounded-xl border border-gray-800 hover:border-teal-500/30 transition-all duration-300 overflow-hidden"
+                onMouseEnter={() => prefetchProduct(product.sku)}
+            >
                 <div className="flex gap-4 p-4">
                     {/* Image */}
                     <Link href={`/products/${encodeURIComponent(product.sku)}`} className="flex-shrink-0">
@@ -196,7 +201,10 @@ function WootwareCardComponent({ product, variant = 'grid' }: WootwareCardProps)
 
     // Grid variant
     return (
-        <div className="group bg-dark-800 rounded-xl border border-gray-800 hover:border-teal-500/30 transition-all duration-300 overflow-hidden flex flex-col h-full">
+        <div
+            className="group bg-dark-800 rounded-xl border border-gray-800 hover:border-teal-500/30 transition-all duration-300 overflow-hidden flex flex-col h-full"
+            onMouseEnter={() => prefetchProduct(product.sku)}
+        >
             {/* Image */}
             <Link href={`/products/${encodeURIComponent(product.sku)}`} className="block">
                 <div className="relative aspect-square bg-white overflow-hidden">

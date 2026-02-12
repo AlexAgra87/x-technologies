@@ -137,7 +137,8 @@ export function useProducts(filters?: ProductFilters) {
     return useQuery({
         queryKey: productKeys.list(filters || {}),
         queryFn: () => apiClient.getProducts(filters),
-        staleTime: 5 * 60 * 1000, // 5 minutes
+        staleTime: 10 * 60 * 1000, // 10 minutes
+        gcTime: 30 * 60 * 1000, // Keep in cache for 30 minutes
     })
 }
 
@@ -146,7 +147,21 @@ export function useProduct(sku: string) {
         queryKey: productKeys.detail(sku),
         queryFn: () => apiClient.getProduct(sku),
         enabled: !!sku,
+        staleTime: 10 * 60 * 1000, // 10 minutes - product data doesn't change often
+        gcTime: 30 * 60 * 1000, // Keep in cache for 30 minutes
     })
+}
+
+// Prefetch a product detail (call on hover for instant navigation)
+export function usePrefetchProduct() {
+    const queryClient = useQueryClient()
+    return (sku: string) => {
+        queryClient.prefetchQuery({
+            queryKey: productKeys.detail(sku),
+            queryFn: () => apiClient.getProduct(sku),
+            staleTime: 10 * 60 * 1000,
+        })
+    }
 }
 
 export function useProductSearch(query: string, enabled = true) {

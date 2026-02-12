@@ -83,7 +83,6 @@ export function ProductImage({
                 priority={priority}
                 loading={priority ? 'eager' : loading}
                 sizes={sizes}
-                unoptimized
             />
         )
     }
@@ -98,7 +97,7 @@ export function ProductImage({
             onError={() => setImageError(true)}
             priority={priority}
             loading={priority ? 'eager' : loading}
-            unoptimized
+            sizes={sizes}
         />
     )
 }
